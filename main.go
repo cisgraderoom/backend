@@ -1,8 +1,10 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"cisclassroom/services"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -10,11 +12,13 @@ func main() {
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-            "status": http.StatusOK,
-            "message": "Everything is Fine 😎",
-        })
+			"status":  http.StatusOK,
+			"message": "Everything is Fine 😎",
+		})
 	})
 
-    router.Run(":8080")
+	api := router.Group("/api")
+	v1 := api.Group("/v1")
+	services.Setup(v1)
+	router.Run(":8080")
 }
-
