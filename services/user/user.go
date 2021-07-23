@@ -1,10 +1,12 @@
 package user
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gofiber/fiber/v2"
+)
 
-func UserService(r *gin.RouterGroup) {
+func UserService(r *fiber.App) {
 	userRoute := r.Group("/user")
 	{
-		userRoute.POST("/register", Register)
+		userRoute.Post("/register", Register)
 	}
 }

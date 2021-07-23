@@ -3,7 +3,7 @@ module cisclassroom
 go 1.16
 
 require (
-	github.com/gin-gonic/gin v1.7.2
-	gorm.io/driver/mysql v1.1.1 // indirect
-	gorm.io/gorm v1.21.12 // indirect
+	github.com/gofiber/fiber/v2 v2.15.0
+	gorm.io/driver/mysql v1.1.1
+	gorm.io/gorm v1.21.12
 )

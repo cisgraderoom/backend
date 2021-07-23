@@ -1,24 +1,25 @@
 package main
 
 import (
-	"cisclassroom/services"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
-	router := gin.Default()
+	router := fiber.New()
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  http.StatusOK,
-			"message": "Everything is Fine 😎",
+	router.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": http.StatusOK,
+			"msg":    "Everything is fine 😎",
 		})
 	})
 
-	api := router.Group("/api")
-	v1 := api.Group("/v1")
-	services.Setup(v1)
-	router.Run(":8080")
+	// Database Setup
+	// database.SetupDB()
+
+	// services.Setup(v1)
+
+	router.Listen(":3000")
 }

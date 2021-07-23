@@ -1,16 +1,21 @@
 version: "3.9"
 
 services:
-  ebook:
-    container_name: cisclassroom
+  cisgraderoom-api:
+    container_name: cisgraderoom-api
+    image: cisgraderoom/api
     build:
       context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+      dockerfile: dev.Dockerfile
+    working_dir: /app
     env_file:
       - ./.env
+    volumes: 
+      - .:/app
+    ports:
+        - "3000:3000"
     restart: always
+
 networks:
   localdev:
     external: true

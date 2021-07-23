@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cisgraderoom-api
+  labels:
+   name: cisgraderoom-api
+   module: Namespaces

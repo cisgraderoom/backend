@@ -1,14 +1,18 @@
 package user
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Register - function fro register
-func Register(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+func Register(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
 		"status": "register success",
+	})
+}
+
+func Login(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"status": "login success",
 	})
 }

@@ -1,14 +1,12 @@
 package services
 
 import (
-	"cisclassroom/database"
 	"cisclassroom/services/user"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Setup - setup all service
-func Setup(r *gin.RouterGroup) {
-	database.SetupDB()
+func Setup(r *fiber.App) {
 	user.UserService(r)
 }
