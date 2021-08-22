@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/kataras/iris/v12"
 )
@@ -74,7 +75,7 @@ func loginCache(ctx iris.Context, user schemas.UserSchema) schemas.UserPublicSch
 	}
 	_, err = redis.Connect().Get(context.Background(), fmt.Sprintf("user:%s", user.Username)).Result()
 	if err != nil {
-		err = redis.Connect().Set(context.Background(), fmt.Sprintf("user:%s", user.Username), json, 10).Err()
+		err = redis.Connect().Set(context.Background(), fmt.Sprintf("user:%s", user.Username), json, time.Hour).Err()
 		if err != nil {
 			ctx.JSON(iris.Map{
 				"status": iris.StatusInternalServerError,
