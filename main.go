@@ -1,25 +1,32 @@
 package main
 
 import (
-	"net/http"
+	"cisgraderoom/database"
+	"cisgraderoom/redis"
+	"cisgraderoom/services/users"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/kataras/iris/v12"
 )
 
 func main() {
-	router := fiber.New()
+	app := iris.New()
 
-	router.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status": http.StatusOK,
-			"msg":    "Everything is fine 😎",
+	app.Get("/health", func(ctx iris.Context) {
+		ctx.StatusCode(iris.StatusOK)
+		ctx.JSON(iris.Map{
+			"status":  iris.StatusOK,
+			"message": "Everythings is fine ✅",
 		})
 	})
 
-	// Database Setup
-	// database.SetupDB()
+	// setup
+	database.SetupDB()
+	redis.SetupCache()
 
-	// services.Setup(v1)
-
-	router.Listen(":3000")
+	// version v1.0
+	v1 := app.Party("/v1")
+	{
+		v1.Post("/login", users.Login)
+	}
+	app.Listen(":3000")
 }

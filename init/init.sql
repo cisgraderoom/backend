@@ -5,9 +5,9 @@
 # https://www.sequelpro.com/
 # https://github.com/sequelpro/sequelpro
 #
-# Host: 127.0.0.1 (MySQL 8.0.25)
-# Database: cisclassroom
-# Generation Time: 2021-07-17 08:39:28 +0000
+# Host: 127.0.0.1 (MySQL 8.0.26)
+# Database: cisgraderoom
+# Generation Time: 2021-08-22 04:37:55 +0000
 # ************************************************************
 
 
@@ -170,6 +170,15 @@ CREATE TABLE `users` (
   PRIMARY KEY (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+
+INSERT INTO `users` (`username`, `password`, `name`, `role`, `ip`, `create_at`, `update_at`, `status`)
+VALUES
+	('superadmin','17c4520f6cfd1ab53d8745e84681eb49','superadmin','superteacher',NULL,'2021-08-22 11:37:00',NULL,'active');
+
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
 
 
 

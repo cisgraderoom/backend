@@ -9,7 +9,7 @@ ENV GO_ENV=development \
 # Install git.
 # Git is required for fetching the dependencies.
 # RUN apk update && apk add --no-cache git
-# Copy go mod and sum files 
+# Copy go mod and sum files
 # COPY go.mod go.sum ./
 # Download all dependencies. Dependencies will be cached if the go.mod and the go.sum files are not changed
 # RUN go mod download
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o cisrgraderoom .
 ### --- End of Builder ---
 
 # Start a new stage from scratch
-FROM golang:1.16-alpine
+FROM golang:1.17-alpine
 WORKDIR /app
 # Copy the Pre-built binary file from the previous stage. Observe we also copied the .env file
 COPY --from=builder /app/cisrgraderoom .
