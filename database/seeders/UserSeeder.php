@@ -23,5 +23,15 @@ class UserSeeder extends Seeder
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+
+        DB::table('users')->insert([
+            'username' => 'student01',
+            'password' => bcrypt('student01'),
+            'role' => 'student',
+            'status' => 'active',
+            'name' => 'นักเรียนทดสอบ',
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 }

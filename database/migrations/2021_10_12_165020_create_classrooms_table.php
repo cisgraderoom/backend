@@ -14,7 +14,7 @@ class CreateClassroomsTable extends Migration
     public function up()
     {
         Schema::create('classrooms', function (Blueprint $table) {
-            $table->string('classcode', 7)->unique();
+            $table->string('classcode', 7)->unique()->primary();
             $table->string('classname', 50);
             $table->string('teacher_id', 13);
             $table->integer('section')->nullable();
