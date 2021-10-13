@@ -16,7 +16,7 @@ class ClassroomController extends Controller
     {
         $rolebase = new RoleBase();
         $user = auth()->user();
-        if ($rolebase->isTeacher($user)) {
+        if (!$rolebase->isTeacherOrAdmin($user)) {
             return response()->json([
                 'status' => Response::HTTP_FORBIDDEN,
                 'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
@@ -62,8 +62,11 @@ class ClassroomController extends Controller
         };
 
         return response()->json([
-            'status' => Response::HTTP_OK,
-            'message' => 'สร้างชั้นเรียนสำเร็จ'
+            'status' => Response::HTTP_CREATED,
+            'message' => 'สร้างชั้นเรียนสำเร็จ',
+            'data' => [
+                'classcode' => $classcode
+            ]
         ]);
     }
 
@@ -87,6 +90,12 @@ class ClassroomController extends Controller
             ]);
         }
         $join = new UserAccess();
+        if (UserAccess::where('username', $user->username)->where('classcode', $classcode)->count() > 0) {
+            return response()->json([
+                'status' => Response::HTTP_BAD_REQUEST,
+                'message' => 'เข้าชั้นเรียนนี้แล่้ว'
+            ]);
+        }
         $join->username = $user->username;
         $join->classcode = $classcode;
         $result = $join->save();
@@ -102,8 +111,8 @@ class ClassroomController extends Controller
             ]);
         }
         return response()->json([
-            'status' => Response::HTTP_OK,
-            'message' => 'เพิ่มชั้นเรียนสำเร็จ'
+            'status' => Response::HTTP_CREATED,
+            'message' => 'เข้าชั้นเรียนสำเร็จ'
         ]);
     }
 }

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateUserAccessTable extends Migration
+class CreateCommentsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,13 +13,13 @@ class CreateUserAccessTable extends Migration
      */
     public function up()
     {
-        Schema::create('user_access', function (Blueprint $table) {
-            $table->primary(['username', 'classcode']);
+        Schema::create('comments', function (Blueprint $table) {
+            $table->bigIncrements('comment_id');
+            $table->foreignId('post_id')->constrained();
             $table->string('username', 13);
-            $table->string('classcode', 7);
+            $table->longText('comment_content');
+            $table->boolean('is_delete')->default(false);
             $table->foreign('username')->references('username')->on('users');
-            $table->foreign('classcode')->references('classcode')->on('classrooms');
-            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
@@ -31,6 +31,6 @@ class CreateUserAccessTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('user_access');
+        Schema::dropIfExists('comments');
     }
 }

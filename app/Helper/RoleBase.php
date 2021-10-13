@@ -2,7 +2,9 @@
 
 namespace App\Helper;
 
+use App\Models\Classroom;
 use App\Models\User;
+use App\Models\UserAccess;
 
 class RoleBase
 {
@@ -38,6 +40,43 @@ class RoleBase
     {
         if (!empty($user)) {
             return $user->tokenCan('admin');
+        }
+        return false;
+    }
+
+    /**
+     * @param User $user
+     * @return bool
+     */
+    public function isTeacherOrAdmin(User $user): bool
+    {
+        if (!empty($user)) {
+            return $user->tokenCan('teacher') || $user->tokenCan('admin');
+        }
+        return false;
+    }
+
+    /**
+     * @param User $user
+     * @return bool
+     */
+    public function isStudentOrTeacher(User $user): bool
+    {
+        if (!empty($user)) {
+            return $user->tokenCan('student') || $user->tokenCan('teacher');
+        }
+        return false;
+    }
+
+    /**
+     * @param User $user
+     * @param string $classcode
+     * @return bool
+     */
+    public function checkUserHasPermission(User $user, string $classcode): bool
+    {
+        if (!empty($user)) {
+            return (UserAccess::where('username', $user->username)->where('classcode', $classcode)->count() > 0 || Classroom::where('teacher_id', $user->username)->where('classcode', $classcode)->count() > 0 || $this->isAdmin($user));
         }
         return false;
     }
