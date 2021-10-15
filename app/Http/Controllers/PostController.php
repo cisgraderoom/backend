@@ -49,6 +49,7 @@ class PostController extends Controller
             ]);
         }
 
+        $this->cachePost($classcode);
         return response()->json([
             'status' => Response::HTTP_CREATED,
             'message' => 'สร้างโพสต์สำเร็จ'
@@ -82,5 +83,13 @@ class PostController extends Controller
         $data = array_slice($data, ($page - 1) * $itemsPerPage, $itemsPerPage) ?: [];
 
         return $pageInfo->pageInfo($page, $total, $itemsPerPage, $data);
+    }
+
+    private function cachePost(string $classcode)
+    {
+        $redisKey = 'post:class:' . $classcode;
+        $post = new Post();
+        $posts = $post->where('classcode', $classcode)->where('is_delete', false)->get();
+        Redis::setEx($redisKey, 3600 * 24, json_encode($posts));
     }
 }

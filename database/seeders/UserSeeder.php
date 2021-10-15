@@ -25,6 +25,16 @@ class UserSeeder extends Seeder
         ]);
 
         DB::table('users')->insert([
+            'username' => 'teacher',
+            'password' => bcrypt('teacher'),
+            'role' => 'teacher',
+            'status' => 'active',
+            'name' => 'อาจารย์ทดสอบ',
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        DB::table('users')->insert([
             'username' => 'student01',
             'password' => bcrypt('student01'),
             'role' => 'student',

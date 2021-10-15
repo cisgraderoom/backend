@@ -21,6 +21,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/classroom')->group(function () {
         Route::post('/newclass', [ClassroomController::class, 'newClass']);
         Route::post('/joinclass', [ClassroomController::class, 'joinClass']);
+        Route::get('/list', [ClassroomController::class, 'listClass']);
     });
 });
 
