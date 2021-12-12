@@ -10,6 +10,4 @@ class Classroom extends Model
     use HasFactory;
 
     protected $table = 'classrooms';
-
-    protected $primaryKey = 'classcode';
 }

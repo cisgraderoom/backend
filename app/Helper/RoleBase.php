@@ -39,7 +39,7 @@ class RoleBase
     public function isAdmin(User $user): bool
     {
         if (!empty($user)) {
-            return $user->tokenCan('admin');
+            return $user->tokenCan('superteacher');
         }
         return false;
     }
@@ -51,7 +51,7 @@ class RoleBase
     public function isTeacherOrAdmin(User $user): bool
     {
         if (!empty($user)) {
-            return $user->tokenCan('teacher') || $user->tokenCan('admin');
+            return $user->tokenCan('teacher') || $user->tokenCan('superteacher');
         }
         return false;
     }

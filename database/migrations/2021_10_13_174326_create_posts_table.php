@@ -14,13 +14,13 @@ class CreatePostsTable extends Migration
     public function up()
     {
         Schema::create('posts', function (Blueprint $table) {
-            $table->id();
-            $table->longText('content');
-            $table->string('username', 13);
+            $table->bigIncrements('post_id');
+            $table->longText('text');
+            $table->string('username', 20);
             $table->string('classcode', 7);
             $table->boolean('is_delete')->default(false);
-            $table->foreign('username')->references('username')->on('users');
-            $table->foreign('classcode')->references('classcode')->on('classrooms');
+            $table->foreign('username')->references('username')->on('user_access');
+            $table->foreign('classcode')->references('classcode')->on('user_access');
             $table->timestamps();
         });
     }

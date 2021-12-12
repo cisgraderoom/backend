@@ -19,7 +19,7 @@ class PageInfo
     public function pageInfo(int $page, int $total, int $limit, array $data)
     {
         return response()->json([
-            'status' => Response::HTTP_OK,
+            'status' => true,
             'message' => 'successful',
             'pageInfo' => [
                 'currentPage' => $page,
@@ -29,7 +29,7 @@ class PageInfo
                 'hasPrevious' => $page > 1,
             ],
             'data' => $data
-        ]);
+        ], Response::HTTP_OK);
     }
 
     /**

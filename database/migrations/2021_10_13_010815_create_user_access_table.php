@@ -15,11 +15,11 @@ class CreateUserAccessTable extends Migration
     {
         Schema::create('user_access', function (Blueprint $table) {
             $table->primary(['username', 'classcode']);
-            $table->string('username', 13);
+            $table->string('username', 20);
             $table->string('classcode', 7);
             $table->foreign('username')->references('username')->on('users');
             $table->foreign('classcode')->references('classcode')->on('classrooms');
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_delete')->default(false);
             $table->timestamps();
         });
     }

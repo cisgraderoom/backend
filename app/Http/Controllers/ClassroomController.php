@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\PageInfo;
 use App\Helper\RoleBase;
 use App\Models\Classroom;
 use App\Models\UserAccess;
@@ -10,18 +11,22 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use App\Helper\Constant;
 
 class ClassroomController extends Controller
 {
+
+    use Constant;
+
     public function newClass(Request $request)
     {
         $rolebase = new RoleBase();
         $user = auth()->user();
         if (!$rolebase->isTeacherOrAdmin($user)) {
             return response()->json([
-                'status' => Response::HTTP_FORBIDDEN,
+                'status' => false,
                 'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ]);
+            ], Response::HTTP_FORBIDDEN);
         }
         $classcode = Str::random(7);
         $classname = (string) $request->input('classname', '');
@@ -33,42 +38,40 @@ class ClassroomController extends Controller
         $classroom = new Classroom();
         $classroom->classcode = $classcode;
         $classroom->classname = $classname;
-        $classroom->teacher_id = $teacher_id;
+        $classroom->teacher = $teacher_id;
         $classroom->section = $section;
         $classroom->year = $year;
-        $classroom->semester = $semester;
+        $classroom->term = $semester;
         $result = $classroom->save();
         if (!$result) {
             return response()->json([
-                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'status' => false,
                 'message' => 'ไม่สามารถบันทึกข้อมูลได้'
-            ]);
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $database_score = $classcode . '_score';
-        $database_submission = $classcode . '_submission';
-        $sql = 'CREATE TABLE ' . $database_score . ' ( username varchar(13) NOT NULL, PRIMARY KEY (username), FOREIGN KEY (username) REFERENCES users(username))';
-        if (!DB::statement($sql)) {
+        $userAccess = new UserAccess();
+        $userAccess->username = $teacher_id;
+        $userAccess->classcode = $classcode;
+        $result = $userAccess->save();
+        if (!$result) {
             return response()->json([
-                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
-                'message' => 'ไม่สามารถสร้างตารางได้'
-            ]);
+                'status' => false,
+                'message' => 'ไม่สามารถบันทึกข้อมูลได้'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        $sql = 'CREATE TABLE ' . $database_submission . ' ( username varchar(13) NOT NULL, code TINYTEXT, result varchar(100) NOT NULL,score DECIMAL(3,2) NOT NULL,classcode varchar(7), PRIMARY KEY (username),problem_id varchar(8), FOREIGN KEY (username) REFERENCES users(username),FOREIGN KEY (classcode) REFERENCES classrooms(classcode),FOREIGN KEY (problem_id) REFERENCES problems(problem_id))';
-        if (!DB::statement($sql)) {
-            return response()->json([
-                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
-                'message' => 'ไม่สามารถสร้างตารางได้'
-            ]);
-        };
+
+        $this->insertClassIntoCache($user);
+
+        Redis::setEx("classroom:$classcode", 3600 * 24, json_encode($classroom));
 
         return response()->json([
-            'status' => Response::HTTP_CREATED,
+            'status' => true,
             'message' => 'สร้างชั้นเรียนสำเร็จ',
             'data' => [
                 'classcode' => $classcode
             ]
-        ]);
+        ], Response::HTTP_CREATED);
     }
 
     public function joinClass(Request $request)
@@ -78,98 +81,122 @@ class ClassroomController extends Controller
         $rolebase = new RoleBase();
         if (!$rolebase->isStudent($user)) {
             return response()->json([
-                'status' => Response::HTTP_FORBIDDEN,
+                'status' => false,
                 'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ]);
+            ], Response::HTTP_FORBIDDEN);
         }
 
         $classroom = Classroom::where('classcode', $classcode)->first();
         if (!$classroom) {
             return response()->json([
-                'status' => Response::HTTP_BAD_REQUEST,
+                'status' => false,
                 'message' => 'รหัสวิชาไม่ถูกต้อง'
-            ]);
+            ], Response::HTTP_BAD_REQUEST);
         }
         $join = new UserAccess();
         if (UserAccess::where('username', $user->username)->where('classcode', $classcode)->count() > 0) {
             return response()->json([
-                'status' => Response::HTTP_BAD_REQUEST,
+                'status' => false,
+
                 'message' => 'เข้าชั้นเรียนนี้แล่้ว'
-            ]);
+            ], Response::HTTP_BAD_REQUEST);
         }
         $join->username = $user->username;
         $join->classcode = $classcode;
         $result = $join->save();
-
-        DB::table($classcode . '_score')->insert(
-            ['username' => $user->username]
-        );
-
         if (!$result) {
             return response()->json([
-                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'status' => false,
                 'message' => 'ไม่สามารถบันทึกข้อมูลได้',
-            ]);
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         $this->insertClassIntoCache($user);
         return response()->json([
-            'status' => Response::HTTP_CREATED,
+            'status' => true,
             'message' => 'เข้าชั้นเรียนสำเร็จ'
-        ]);
+        ], Response::HTTP_CREATED);
     }
 
-    public function listClass()
+    public function listClass(Request $request)
     {
         $user = auth()->user();
         $roleBase = new RoleBase();
         if ($roleBase->isStudent($user)) {
-            if (!Redis::get('classroom:student:' . $user->username) && $cache) {
-                $classrooms = UserAccess::where('username', $user->username)->get();
-                Redis::setEx('classroom:student:' . $user->username, 3600 * 24, json_encode($classrooms));
+            if (!Redis::get('classroom:student:' . $user->username)) {
+                $access = $this->listClassQuery($user);
+                Redis::setEx('classroom:student:' . $user->username, 3600 * 24, json_encode($access));
             }
-            $classrooms = json_decode(Redis::get('classroom:student:' . $user->username));
+            $access = json_decode(Redis::get('classroom:student:' . $user->username), true);
         } else if ($roleBase->isTeacher($user)) {
-            if (!Redis::get('classroom:teacher:' . $user->username) && $cache) {
-                $classrooms = Classroom::where('teacher_id', $user->username)->get();
-                Redis::setEx('classroom:teacher:' . $user->username, 3600 * 24, json_encode($classrooms));
+            if (!Redis::get('classroom:teacher:' . $user->username)) {
+                $access = $this->listClassQuery($user);
+                Redis::setEx('classroom:teacher:' . $user->username, 3600 * 24, json_encode($access));
             }
-            $classrooms = json_decode(Redis::get('classroom:teacher:' . $user->username));
-        } else if ($roleBase->isAdmin($user) && $cache) {
-            if (!Redis::get('classroom:admin:' . $user->username) && $cache) {
-                $classrooms = Classroom::all();
-                Redis::setEx('classroom:admin:' . $user->username, 3600 * 24, json_encode($classrooms));
+            $access = json_decode(Redis::get('classroom:teacher:' . $user->username));
+        } else if ($roleBase->isAdmin($user)) {
+            if (!Redis::get('classroom:superteacher:' . $user->username)) {
+                $access = $this->listClassQuery($user);
+                Redis::setEx('classroom:superteacher:' . $user->username, 3600 * 24, json_encode($access));
             }
-            $classrooms = json_decode(Redis::get('classroom:admin:' . $user->username));
+            $access = json_decode(Redis::get('classroom:superteacher:' . $user->username));
         } else {
             return response()->json([
-                'status' => Response::HTTP_FORBIDDEN,
+                'status' => false,
                 'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ]);
+            ], Response::HTTP_FORBIDDEN);
         }
 
-        return response()->json([
-            'status' => Response::HTTP_OK,
-            'message' => 'ดึงข้อมูลสำเร็จ',
-            'data' => $classrooms ?? []
-        ]);
+        $pageInfo = new PageInfo();
+        $page = $pageInfo->mapPage((int) $request->get('page', 1));
+        $itemsPerPage = $pageInfo->itemPerPage();
+        $total = count($access) ?: 0;
+
+        return $pageInfo->pageInfo($page, $total, $itemsPerPage, $access);
     }
+
+    // public function listByClassCode 
 
     private function insertClassIntoCache(\Illuminate\Contracts\Auth\Authenticatable|null $user): bool
     {
         $roleBase = new RoleBase();
         if ($roleBase->isStudent($user)) {
-            $classrooms = UserAccess::where('username', $user->username)->get();
-            Redis::setEx('classroom:student:' . $user->username, 3600 * 24, json_encode($classrooms));
+            $access = $this->listClassQuery($user);
+            Redis::setEx('classroom:student:' . $user->username, 3600 * 24, json_encode($access));
         } else if ($roleBase->isTeacher($user)) {
-            $classrooms = Classroom::where('teacher_id', $user->username)->get();
-            Redis::setEx('classroom:teacher:' . $user->username, 3600 * 24, json_encode($classrooms));
-        } else if ($roleBase->isAdmin($user) && $cache) {
-            $classrooms = Classroom::all();
-            Redis::setEx('classroom:admin:' . $user->username, 3600 * 24, json_encode($classrooms));
+            $access = $this->listClassQuery($user);
+            Redis::setEx('classroom:teacher:' . $user->username, 3600 * 24, json_encode($access));
+        } else if ($roleBase->isAdmin($user)) {
+            $access = $this->listClassQuery($user);
+            Redis::setEx('classroom:superteacher:' . $user->username, 3600 * 24, json_encode($access));
         } else {
             return false;
         }
         return true;
+    }
+
+    private function listClassQuery(\Illuminate\Contracts\Auth\Authenticatable|null $user)
+    {
+        return DB::table('user_access')->where('user_access.username', $user->username)->join('classrooms', 'user_access.classcode', '=', 'classrooms.classcode')->leftJoin('users', 'classrooms.teacher', '=', 'users.username')->get(['users.username', 'user_access.classcode', 'classrooms.classname', 'users.name', 'classrooms.section', 'classrooms.year']);
+    }
+
+    public function classroomByClasscode(string $classcode)
+    {
+        $classroom = json_decode(Redis::get("classroom:$classcode"), true);
+        if (!$classroom) {
+            $classroom = DB::table('classrooms')->where('classcode', $classcode)->join('users', 'classrooms.teacher', '=', 'users.username')->first(['classrooms.classcode', 'classrooms.classname', 'classrooms.term', 'classrooms.section', 'classrooms.year', 'users.name']);
+            if ($classroom === null) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'ไม่พบชั้นเรียนนี้',
+                ], Response::HTTP_NOT_FOUND);
+            }
+            Redis::setEx("classroom:$classcode", 3600 * 24 * 30, json_encode($classroom));
+        }
+        return response()->json([
+            'status' => true,
+            'message' => 'successful',
+            'data' => $classroom,
+        ], Response::HTTP_OK);
     }
 }

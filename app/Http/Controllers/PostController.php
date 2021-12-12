@@ -18,42 +18,42 @@ class PostController extends Controller
         $user = auth()->user();
         if (!$rolebase->isTeacherOrAdmin($user)) {
             return response()->json([
-                'status' => Response::HTTP_FORBIDDEN,
+                'status' => false,
                 'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ]);
+            ], Response::HTTP_FORBIDDEN);
         }
         $classcode = $request->input('classcode', '');
         $classroom = Classroom::where('classcode', $classcode)->first();
         if (!$classroom) {
             return response()->json([
-                'status' => Response::HTTP_BAD_REQUEST,
+                'status' => false,
                 'message' => 'รหัสวิชาไม่ถูกต้อง'
-            ]);
+            ], Response::HTTP_BAD_REQUEST);
         }
-        $content = $request->input('content', '');
-        $content = htmlentities(strip_tags(html_entity_decode(htmlspecialchars($content)))) ?? '';
+        $text = $request->input('text', '');
+        $text = htmlentities(strip_tags(html_entity_decode(htmlspecialchars($text)))) ?? '';
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
             return response()->json([
-                'status' => Response::HTTP_FORBIDDEN,
+                'status' => false,
                 'message' => 'คุณไม่มีสิทธิในส่วนนี้'
-            ]);
+            ], Response::HTTP_FORBIDDEN);
         }
         $post = new Post();
         $post->classcode = $classcode;
-        $post->content = $content;
+        $post->text = $text;
         $post->username = $user->username;
         if (!$post->save()) {
             return response()->json([
-                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'status' => false,
                 'message' => 'ไม่สามารถสร้างโพสต์ได้'
-            ]);
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         $this->cachePost($classcode);
         return response()->json([
-            'status' => Response::HTTP_CREATED,
+            'status' => true,
             'message' => 'สร้างโพสต์สำเร็จ'
-        ]);
+        ], Response::HTTP_CREATED);
     }
 
 
