@@ -182,16 +182,20 @@ class ClassroomController extends Controller
 
     public function classroomByClasscode(string $classcode)
     {
-        $classroom = json_decode(Redis::get("classroom:$classcode"), true);
-        if (!$classroom) {
-            $classroom = DB::table('classrooms')->where('classcode', $classcode)->join('users', 'classrooms.teacher', '=', 'users.username')->first(['classrooms.classcode', 'classrooms.classname', 'classrooms.term', 'classrooms.section', 'classrooms.year', 'users.name']);
-            if ($classroom === null) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'ไม่พบชั้นเรียนนี้',
-                ], Response::HTTP_NOT_FOUND);
-            }
-            Redis::setEx("classroom:$classcode", 3600 * 24 * 30, json_encode($classroom));
+        $user = auth()->user();
+        $access = DB::table('user_access')->where('username', $user->username)->where('classcode', $classcode)->first();
+        if ($access === null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึง',
+            ], Response::HTTP_FORBIDDEN);
+        }
+        $classroom = DB::table('classrooms')->where('classcode', $classcode)->join('users', 'classrooms.teacher', '=', 'users.username')->first(['classrooms.classcode', 'classrooms.classname', 'classrooms.term', 'classrooms.section', 'classrooms.year', 'users.name']);
+        if ($classroom === null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบชั้นเรียนนี้',
+            ], Response::HTTP_NOT_FOUND);
         }
         return response()->json([
             'status' => true,

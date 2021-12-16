@@ -31,6 +31,7 @@ Route::group(
     function () {
         Route::prefix('/user')->group(function () {
             Route::post('/upload', [UserController::class, 'uploadStudent']);
+            Route::put('/changepassword', [UserController::class, 'changePassword']);
         });
     }
 );

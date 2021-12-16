@@ -8,6 +8,7 @@ use App\Models\Classroom;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 
 class PostController extends Controller
@@ -66,16 +67,14 @@ class PostController extends Controller
         $user = auth()->user();
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
             return response()->json([
-                'status' => Response::HTTP_FORBIDDEN,
+                'status' => false,
                 'message' => 'คุณไม่มีสิทธิในส่วนนี้'
-            ]);
+            ], Response::HTTP_FORBIDDEN);
         }
 
         $redisKey = 'post:class:' . $classcode;
         if (!Redis::get($redisKey)) {
-            $post = new Post();
-            $posts = $post->where('classcode', $classcode)->where('is_delete', false)->get();
-            Redis::setEx($redisKey, 3600 * 24, json_encode($posts));
+            $this->cachePost($classcode);
         }
 
         $data = json_decode(Redis::get($redisKey));
@@ -88,8 +87,7 @@ class PostController extends Controller
     private function cachePost(string $classcode)
     {
         $redisKey = 'post:class:' . $classcode;
-        $post = new Post();
-        $posts = $post->where('classcode', $classcode)->where('is_delete', false)->get();
+        $posts = DB::table('posts')->where('classcode', $classcode)->where('is_delete', false)->leftJoin('users', 'posts.username', '=', 'users.username')->orderByDesc('post_id')->get(['users.name', 'posts.text', 'posts.post_id', 'posts.classcode', 'posts.created_at', 'posts.updated_at']);
         Redis::setEx($redisKey, 3600 * 24, json_encode($posts));
     }
 }

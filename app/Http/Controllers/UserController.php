@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\RoleBase;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Date;
@@ -84,5 +85,22 @@ class UserController extends Controller
             'status' => true,
             'message' => 'เพิ่มผู้ใช้สำเร็จ'
         ], Response::HTTP_OK);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $user = auth()->user();
+        $oldpassword = $request->input('oldpassword', '');
+        $newpassword = $request->input('newpassword', '');
+        $users = new User();
+        $credential = ['username' => $user->username, 'password' => $oldpassword];
+        if (!auth()->validate($credential)) {
+            var_dump('password');
+        }
+        // $users->update([
+        // 'password' => $newpassword,
+        // ])
+        // $user = new User();
+        // $user->select('user')
     }
 }
