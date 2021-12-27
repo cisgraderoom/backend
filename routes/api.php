@@ -55,17 +55,17 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/post')->group(function () {
         Route::post('/', [PostController::class, 'newPost']);
-        Route::put('/', [PostController::class, 'updatePost']);
+        Route::get('/{classcode}/{id}', [PostController::class, 'getPostById']);
+        Route::put('/{classcode}/{id}', [PostController::class, 'updatePost']);
         Route::get('/{classcode}', [PostController::class, 'getPost']);
-        Route::delete('/', [PostController::class, 'deletePost']);
+        Route::delete('/{classcode}/{id}', [PostController::class, 'deletePost']);
     });
 });
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/comment')->group(function () {
-        Route::post('/', [CommentController::class, 'newComment']);
-        Route::put('/', [CommentController::class, 'updateComment']);
-        Route::get('/', [CommentController::class, 'getComment']);
-        Route::delete('/', [CommentController::class, 'deleteComment']);
+        Route::post('/{classcode}/{id}', [CommentController::class, 'newComment']);
+        Route::get('/{classcode}/{id}', [CommentController::class, 'getComment']);
+        Route::delete('/{classcode}/{postId}/{id}', [CommentController::class, 'deleteComment']);
     });
 });

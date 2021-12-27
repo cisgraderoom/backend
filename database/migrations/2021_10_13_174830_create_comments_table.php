@@ -18,7 +18,7 @@ class CreateCommentsTable extends Migration
             $table->foreignId('post_id')->references('post_id')->on('posts');
             $table->string('username', 20);
             $table->string('classcode', 7);
-            $table->longText('comment_content');
+            $table->longText('text');
             $table->boolean('is_delete')->default(false);
             $table->foreign('username')->references('username')->on('user_access');
             $table->foreign('classcode')->references('classcode')->on('user_access');
