@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use Facade\FlareClient\Http\Response;
 use Illuminate\Http\Request;
@@ -42,6 +43,12 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::post('/join', [ClassroomController::class, 'joinClass']);
         Route::get('/list', [ClassroomController::class, 'listClass']);
         Route::get('/{classcode}', [ClassroomController::class, 'classroomByClasscode']);
+    });
+});
+
+Route::group(['middleware' => 'auth:sanctum'], function () {
+    Route::prefix('/task')->group(function () {
+        Route::post('/new', [TaskController::class, 'newTask']);
     });
 });
 
