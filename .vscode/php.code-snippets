@@ -1,0 +1,24 @@
+{
+    "debug snippet var_dump()": {
+        "prefix": "vd",
+        "body": [
+            "echo '<fieldset><legend>'.__FILE__.':'.__LINE__.'</legend><pre>';",
+            "echo ' : ';",
+            "var_dump($$1);",
+            "echo '</pre></fieldset>';",
+            "exit;"
+        ],
+        "description": "debug snippet var_dump()"
+    },
+    "debug snippet print_r()": {
+        "prefix": "pr",
+        "body": [
+            "echo '<fieldset><legend>'.__FILE__.':'.__LINE__.'</legend><pre>';",
+            "echo ' : ';",
+            "print_r($$1);",
+            "echo '</pre></fieldset>';",
+            "exit;"
+        ],
+        "description": "debug snippet var_dump()"
+    }
+}

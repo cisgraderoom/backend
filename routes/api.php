@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use Facade\FlareClient\Http\Response;
 use Illuminate\Http\Request;
@@ -23,7 +24,6 @@ Route::get("/health", function () {
 Route::prefix('/user')->group(function () {
     Route::get('/checklogin', [UserController::class, 'checklogin'])->name('login');
     Route::post('/login', [UserController::class, 'login']);
-    Route::post('/adduser', [UserController::class, 'addUser']);
 });
 
 Route::group(
@@ -32,6 +32,11 @@ Route::group(
         Route::prefix('/user')->group(function () {
             Route::post('/upload', [UserController::class, 'uploadStudent']);
             Route::put('/changepassword', [UserController::class, 'changePassword']);
+            Route::get('/all', [UserController::class, 'getUserAll']);
+            Route::get('/{username}', [UserController::class, 'getByUserId']);
+            Route::put('/{username}', [UserController::class, 'updateUser']);
+            Route::post('/{username}/reset', [UserController::class, 'resetPassword']);
+            Route::post('/new', [UserController::class, 'newUser']);
         });
     }
 );
@@ -46,19 +51,25 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 });
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
+    Route::prefix('/task')->group(function () {
+        Route::post('/new', [TaskController::class, 'newTask']);
+    });
+});
+
+Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/post')->group(function () {
         Route::post('/', [PostController::class, 'newPost']);
-        Route::put('/', [PostController::class, 'updatePost']);
+        Route::get('/{classcode}/{id}', [PostController::class, 'getPostById']);
+        Route::put('/{classcode}/{id}', [PostController::class, 'updatePost']);
         Route::get('/{classcode}', [PostController::class, 'getPost']);
-        Route::delete('/', [PostController::class, 'deletePost']);
+        Route::delete('/{classcode}/{id}', [PostController::class, 'deletePost']);
     });
 });
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/comment')->group(function () {
-        Route::post('/', [CommentController::class, 'newComment']);
-        Route::put('/', [CommentController::class, 'updateComment']);
-        Route::get('/', [CommentController::class, 'getComment']);
-        Route::delete('/', [CommentController::class, 'deleteComment']);
+        Route::post('/{classcode}/{id}', [CommentController::class, 'newComment']);
+        Route::get('/{classcode}/{id}', [CommentController::class, 'getComment']);
+        Route::delete('/{classcode}/{postId}/{id}', [CommentController::class, 'deleteComment']);
     });
 });
