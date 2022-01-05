@@ -24,7 +24,6 @@ Route::get("/health", function () {
 Route::prefix('/user')->group(function () {
     Route::get('/checklogin', [UserController::class, 'checklogin'])->name('login');
     Route::post('/login', [UserController::class, 'login']);
-    Route::post('/adduser', [UserController::class, 'addUser']);
 });
 
 Route::group(
@@ -33,6 +32,11 @@ Route::group(
         Route::prefix('/user')->group(function () {
             Route::post('/upload', [UserController::class, 'uploadStudent']);
             Route::put('/changepassword', [UserController::class, 'changePassword']);
+            Route::get('/all', [UserController::class, 'getUserAll']);
+            Route::get('/{username}', [UserController::class, 'getByUserId']);
+            Route::put('/{username}', [UserController::class, 'updateUser']);
+            Route::post('/{username}/reset', [UserController::class, 'resetPassword']);
+            Route::post('/new', [UserController::class, 'newUser']);
         });
     }
 );

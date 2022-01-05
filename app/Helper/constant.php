@@ -5,6 +5,9 @@ namespace App\Helper;
 
 trait Constant
 {
+
+    public $limit = 20;
+
     public $usertable = 'users';
     public $userUsername = 'users.username';
     public $userPassword = 'users.password';
