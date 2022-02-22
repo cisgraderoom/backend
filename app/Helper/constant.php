@@ -21,6 +21,8 @@ trait Constant
     public $commentTable = 'comments';
     public $commentId = 'comment_id';
 
+    public $problemTable = 'problems';
+
     public $isDelete = 'is_delete';
 
     public $assetpath = "e39ac4eaaaa14573b03ef31d70b60fc4"; // asset folder (assetFile)

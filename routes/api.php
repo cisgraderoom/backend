@@ -53,6 +53,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/task')->group(function () {
         Route::post('/new', [TaskController::class, 'newTask']);
+        Route::get('/list', [TaskController::class, 'getTask']);
     });
 });
 

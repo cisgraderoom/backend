@@ -6,11 +6,11 @@ use App\Helper\Constant;
 use App\Helper\PageInfo;
 use App\Helper\RoleBase;
 use App\Models\User;
+use DateTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -100,18 +100,24 @@ class UserController extends Controller
     public function changePassword(Request $request)
     {
         $user = auth()->user();
-        $oldpassword = $request->input('oldpassword', '');
-        $newpassword = $request->input('newpassword', '');
-        $users = new User();
-        $credential = ['username' => $user->username, 'password' => $oldpassword];
-        if (!auth()->validate($credential)) {
-            var_dump('password');
+        $newpassword = trim($request->input('newpassword', ''));
+        if (strlen($newpassword) < 8) {
+            return response()->json([
+                'status' => false,
+                'message' => 'รหัสผ่านอย่างน้อย 8 ตัวอักษร'
+            ]);
         }
-        // $users->update([
-        // 'password' => $newpassword,
-        // ])
-        // $user = new User();
-        // $user->select('user')
+        $resp = DB::table($this->usertable)->where('username', $user->username)->update(['password' => bcrypt($newpassword)]);
+        if (!$resp) {
+            return response()->json([
+                'status' => false,
+                'message' => 'เปลี่ยนรหัสผ่านไม่สำเร็จ'
+            ]);
+        }
+        return response()->json([
+            'status' => true,
+            'message' => 'เปลี่ยนรหัสผ่านสำเร็จ'
+        ]);
     }
 
     public function getUserAll(Request $request)
@@ -127,9 +133,9 @@ class UserController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $data = DB::table($this->usertable)->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray();
+        $datas = DB::table($this->usertable)->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray();;
         $total = DB::table($this->usertable)->count() ?: 0;
-        return $pageInfo->pageInfo($page, $total, $this->limit, $data);
+        return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
     }
 
     public function getByUserId(string $username)
