@@ -7,6 +7,7 @@ use App\Helper\PageInfo;
 use App\Helper\RoleBase;
 use App\Models\Classroom;
 use App\Models\Post;
+use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -170,7 +171,7 @@ class PostController extends Controller
     private function cachePost(string $classcode)
     {
         $redisKey = 'post:class:' . $classcode;
-        $posts = DB::table('posts')->where('classcode', $classcode)->where('is_delete', false)->leftJoin('users', 'posts.username', '=', 'users.username')->orderByDesc('post_id')->get(['users.name', 'posts.text', 'posts.post_id', 'posts.classcode', 'posts.created_at', 'posts.updated_at']);
+        $posts = DB::table('posts')->where('classcode', $classcode)->where('is_delete', false)->leftJoin('users', 'posts.username', '=', 'users.username')->orderByDesc('post_id')->get(['users.name', 'users.username', 'posts.text', 'posts.post_id', 'posts.classcode', 'posts.created_at', 'posts.updated_at']);
         Redis::setEx($redisKey, 3600 * 24, json_encode($posts));
     }
 }

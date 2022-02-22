@@ -111,7 +111,7 @@ class CommentController extends Controller
     private function cacheComment(string $classcode, int $id)
     {
         $redisKey = 'comment:class:' . $classcode . ':' . $id;
-        $comments = DB::table('comments')->where('classcode', $classcode)->where($this->postId, $id)->where('is_delete', false)->leftJoin('users', 'comments.username', '=', 'users.username')->orderByDesc('post_id')->get(['users.name', 'comments.text', 'comments.comment_id', 'comments.post_id', 'comments.classcode', 'comments.created_at', 'comments.updated_at', 'users.role']);
+        $comments = DB::table('comments')->where('classcode', $classcode)->where($this->postId, $id)->where('is_delete', false)->leftJoin('users', 'comments.username', '=', 'users.username')->orderByDesc('post_id')->get(['users.name', 'users.username', 'comments.text', 'comments.comment_id', 'comments.post_id', 'comments.classcode', 'comments.created_at', 'comments.updated_at', 'users.role']);
         Redis::setEx($redisKey, 3600 * 24, json_encode($comments));
     }
 }
