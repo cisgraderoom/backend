@@ -23,6 +23,10 @@ trait Constant
 
     public $problemTable = 'problems';
 
+    public $submissionTable = 'submission';
+
+    public $scoreTable = 'score';
+
     public $isDelete = 'is_delete';
 
     public $assetpath = "e39ac4eaaaa14573b03ef31d70b60fc4"; // asset folder (assetFile)

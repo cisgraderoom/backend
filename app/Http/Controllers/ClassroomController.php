@@ -203,4 +203,75 @@ class ClassroomController extends Controller
             'data' => $classroom,
         ], Response::HTTP_OK);
     }
+
+    public function listUserByClasscode(string $classcode, Request $request)
+    {
+        $rolebase = new RoleBase();
+        $pageInfo = new PageInfo();
+        $page = (int)$request->input('page', 1);
+        $user = auth()->user();
+
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $classroom = DB::table('user_access')->where('classcode', $classcode)->offset(($page - 1) * $this->limit)->take($this->limit)->get('username')->toArray();
+        $username = array_column($classroom, 'username') ?: [];
+        $datas = DB::table($this->usertable)->whereIn('username', $username)->get([
+            'username',
+            'role',
+            'status',
+            'name',
+        ])->toArray();
+        $total = DB::table('user_access')->where('classcode', $classcode)->count() ?: 0;
+        return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
+    }
+
+    public function deleteUserInClassroom(Request $request)
+    {
+        $rolebase = new RoleBase();
+        $user = auth()->user();
+        $username = $request->input('username', '');
+        $classcode = $request->input('classcode', '');
+
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $res = DB::table('user_access')->where('classcode', $classcode)->where('username', $username)->update([
+            'is_delete' => true,
+        ]);
+
+        if (!$res) {
+            return response()->json([
+                'status' => false,
+                'msg' => 'ไม่สามารถลบได้'
+            ]);
+        }
+
+        return response()->json([
+            'status' => false,
+            'msg' => 'ลบสำเร็จ',
+        ]);
+    }
 }
