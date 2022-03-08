@@ -7,6 +7,9 @@ use App\Helper\RoleBase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Console\Input\Input;
+
 // use Illuminate\Support\Facades\Storage;
 
 class TaskController extends Controller
@@ -26,7 +29,8 @@ class TaskController extends Controller
         $openAt = $request->input('open', time());
         $closeAt = $request->input('close', null);
         $openAt = date('c', $openAt);
-        // $files = $request->hasFile('asset');
+        $files = $request->file('testcase');
+        var_dump($files->extension());
         // $path = Storage::putFile('testcase', $request->file('testcase'));
         if ($closeAt != null) {
             $closeAt = date('c', $closeAt);

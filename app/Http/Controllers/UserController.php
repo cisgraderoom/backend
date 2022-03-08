@@ -226,8 +226,7 @@ class UserController extends Controller
         }
 
         $resp = DB::table($this->usertable)->insert([
-            'name' => $name, 'role' => $role, 'username' => $username, 'password' => $password, 'created_at' =>  date('c', time()),
-            'updated_at' => date('c', time()),
+            'name' => $name, 'role' => $role, 'username' => $username, 'password' => $password,
         ]);
         if (!$resp) {
             return response()->json([

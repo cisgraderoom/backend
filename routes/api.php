@@ -47,6 +47,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/classroom')->group(function () {
         Route::post('/new', [ClassroomController::class, 'newClass']);
         Route::post('/join', [ClassroomController::class, 'joinClass']);
+        Route::post('/add/teacher', [ClassroomController::class, 'joinTeacherClass']);
         Route::get('/list', [ClassroomController::class, 'listClass']);
         Route::get('/{classcode}', [ClassroomController::class, 'classroomByClasscode']);
         Route::get('/list/user/{classcode}', [ClassroomController::class, 'listUserByClasscode']);
