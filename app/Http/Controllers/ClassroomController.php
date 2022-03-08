@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use App\Helper\Constant;
 
+
 class ClassroomController extends Controller
 {
 
@@ -97,7 +98,6 @@ class ClassroomController extends Controller
         if (UserAccess::where('username', $user->username)->where('classcode', $classcode)->count() > 0) {
             return response()->json([
                 'status' => false,
-
                 'message' => 'เข้าชั้นเรียนนี้แล่้ว'
             ], Response::HTTP_BAD_REQUEST);
         }
@@ -177,7 +177,7 @@ class ClassroomController extends Controller
 
     private function listClassQuery(\Illuminate\Contracts\Auth\Authenticatable|null $user)
     {
-        return DB::table('user_access')->where('user_access.username', $user->username)->join('classrooms', 'user_access.classcode', '=', 'classrooms.classcode')->leftJoin('users', 'classrooms.teacher', '=', 'users.username')->get(['users.username', 'user_access.classcode', 'classrooms.classname', 'users.name', 'classrooms.section', 'classrooms.year']);
+        return DB::table('user_access')->where('user_access.username', $user->username)->join('classrooms', 'user_access.classcode', '=', 'classrooms.classcode')->leftJoin('users', 'classrooms.teacher', '=', 'users.username')->where('user_access.is_delete', 0)->get(['users.username', 'user_access.classcode', 'classrooms.classname', 'users.name', 'classrooms.section', 'classrooms.year']);
     }
 
     public function classroomByClasscode(string $classcode)
@@ -202,5 +202,149 @@ class ClassroomController extends Controller
             'message' => 'successful',
             'data' => $classroom,
         ], Response::HTTP_OK);
+    }
+
+    public function listUserByClasscode(string $classcode, Request $request)
+    {
+        $rolebase = new RoleBase();
+        $pageInfo = new PageInfo();
+        $page = (int)$request->input('page', 1);
+        $user = auth()->user();
+
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $classroom = DB::table('user_access')->where('classcode', $classcode)->offset(($page - 1) * $this->limit)->take($this->limit)->get('username')->toArray();
+        $username = array_column($classroom, 'username') ?: [];
+        $datas = DB::table($this->usertable)->whereIn('users.username', $username)->join('user_access', 'users.username', '=', 'user_access.username')->where('user_access.classcode', $classcode)->get([
+            'users.username',
+            'users.role',
+            'users.status',
+            'users.name',
+            'user_access.is_delete'
+        ])->toArray();
+        $total = DB::table('user_access')->where('classcode', $classcode)->count() ?: 0;
+        return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
+    }
+
+    public function deleteUserInClassroom(Request $request)
+    {
+        $rolebase = new RoleBase();
+        $user = auth()->user();
+        $username = $request->input('username', '');
+        $classcode = $request->input('classcode', '');
+
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $res = DB::table('user_access')->where('classcode', $classcode)->where('username', $username)->update([
+            'is_delete' => true,
+        ]);
+
+        if (!$res) {
+            return response()->json([
+                'status' => false,
+                'msg' => 'ไม่สามารถลบได้'
+            ]);
+        }
+
+        $this->flushCache($username);
+        return response()->json([
+            'status' => true,
+            'msg' => 'ลบสำเร็จ',
+        ]);
+    }
+
+    public function flushCache(string $username)
+    {
+        $user = DB::table('users')->where('username', $username)->first('role');
+        $role = $user->role ?: 'student';
+        Redis::del(`classroom:${role}:${username}`);
+    }
+
+    public function joinTeacherClass(Request $request)
+    {
+        $classcode = $request->input('classcode', '');
+        $username = $request->input('username', '');
+        $user = auth()->user();
+        $rolebase = new RoleBase();
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $classroom = Classroom::where('classcode', $classcode)->first();
+        if (!$classroom) {
+            return response()->json([
+                'status' => false,
+                'message' => 'รหัสวิชาไม่ถูกต้อง'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $teacherRole = DB::table('users')->where('username', $username)->first('role');
+        if (!$teacherRole) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ผู้ใช้ไม่ถูกต้อง'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+        $teacherRole = $teacherRole->role != null ? $teacherRole->role : 'student';
+        if ($teacherRole == 'student') {
+            return response()->json(
+                [
+                    'status' => false,
+                    'message' => 'เพิ่มได้เฉพาะอาจารย์เท่านั้น'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $join = new UserAccess();
+        if (UserAccess::where('username', $username)->where('classcode', $classcode)->count() > 0) {
+            return response()->json([
+                'status' => false,
+
+                'message' => 'เข้าชั้นเรียนนี้แล่้ว'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+        $join->username = $username;
+        $join->classcode = $classcode;
+        $result = $join->save();
+        if (!$result) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่สามารถบันทึกข้อมูลได้',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+        $user->username = $username;
+        $this->insertClassIntoCache($user);
+        return response()->json([
+            'status' => true,
+            'message' => 'เข้าชั้นเรียนสำเร็จ'
+        ], Response::HTTP_CREATED);
     }
 }

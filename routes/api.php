@@ -3,9 +3,11 @@
 use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use Facade\FlareClient\Http\Response;
+use Facade\Ignition\Tabs\Tab;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HTTP_Response;
 use Illuminate\Support\Facades\Route;
@@ -45,15 +47,35 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/classroom')->group(function () {
         Route::post('/new', [ClassroomController::class, 'newClass']);
         Route::post('/join', [ClassroomController::class, 'joinClass']);
+        Route::post('/add/teacher', [ClassroomController::class, 'joinTeacherClass']);
         Route::get('/list', [ClassroomController::class, 'listClass']);
         Route::get('/{classcode}', [ClassroomController::class, 'classroomByClasscode']);
+        Route::get('/list/user/{classcode}', [ClassroomController::class, 'listUserByClasscode']);
+        Route::delete('/user', [ClassroomController::class, 'deleteUserInClassroom']);
     });
 });
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/task')->group(function () {
+        Route::put('/{id}', [TaskController::class, 'editTask']);
         Route::post('/new', [TaskController::class, 'newTask']);
         Route::get('/list', [TaskController::class, 'getTask']);
+        Route::get('/{id}', [TaskController::class, 'getTaskById']);
+        Route::get('/admin/list', [TaskController::class, 'getTask']);
+        Route::get('/admin/{id}', [TaskController::class, 'getTaskById']);
+        Route::put('/status/{id}', [TaskController::class, 'hiddenProblem']);
+        Route::delete('/{id}', [TaskController::class, 'deleteProblem']);
+    });
+});
+
+Route::group(['middleware' => 'auth:sanctum'], function () {
+    Route::prefix('/submission')->group(function () {
+        Route::post('/submit/{id}', [SubmissionController::class, 'submit']);
+        Route::get('/score/{classcode}/{id}', [SubmissionController::class, 'scoreByProblemId']);
+        Route::get('/score/{classcode}', [SubmissionController::class, 'scoreByUser']);
+        Route::get('/score/{classcode}', [SubmissionController::class, 'scoreByUser']);
+        Route::get('/score/classroom/{classcode}/all', [SubmissionController::class, 'scoreByClassroom']);
+        Route::get('/list/{classcode}/problem/{problem}', [SubmissionController::class, 'getListSubmission']);
     });
 });
 
