@@ -7,33 +7,34 @@ use App\Helper\RoleBase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
-use Symfony\Component\Console\Input\Input;
-
-// use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 
 class TaskController extends Controller
 {
 
     use Constant;
 
-    public function newTask(Request $request)
+    public function newTasks(Request $request)
     {
         $user = auth()->user();
         $rolebase = new RoleBase();
         $problemName = $request->input('problemName', '');
         $problemDesc = $request->input('problemDesc', '');
-        $testcase = $request->input('numberOfTestcase', 0);
         $score = $request->input('score', 0);
         $classcode  = $request->input('classcode');
         $openAt = $request->input('open', time());
         $closeAt = $request->input('close', null);
-        $openAt = date('c', $openAt);
-        $files = $request->file('testcase');
-        var_dump($files->extension());
-        // $path = Storage::putFile('testcase', $request->file('testcase'));
+        if (!$_FILES['testcase']) {
+            return response()->json([
+                'status' => false,
+                'message' => 'กรุณาเพิ่มไฟล์ที่ต้องการอัพโหลด'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+        $zip = new ZipArchive();
+        $openAt = date('Y-m-d H:i:s', $openAt);
+
         if ($closeAt != null) {
-            $closeAt = date('c', $closeAt);
+            $closeAt = date('Y-m-d H:i:s', $closeAt);
             if ($openAt >= $closeAt) {
                 return response()->json([
                     'status' => false,
@@ -56,6 +57,19 @@ class TaskController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        $target_dir = storage_path("testcase/");
+        $target_file = $target_dir . time() . '_' . basename($_FILES['testcase']['name']);
+        move_uploaded_file($_FILES['testcase']['tmp_name'], $target_file);
+
+        if ($_FILES['asset']) {
+            $asset_target_dir = storage_path("asset/");
+            $asset_target_file = $asset_target_dir . time() . '_' . basename($_FILES['asset']['name']);
+            move_uploaded_file($_FILES['asset']['tmp_name'], $asset_target_file);
+        }
+
+
+        $zip->open($target_file);
+        $testcase = ceil($zip->count() / 2);
         $resp = DB::table($this->problemTable)->insertGetId([
             'problem_name' => $problemName,
             'problem_desc' => $problemDesc,
@@ -73,6 +87,10 @@ class TaskController extends Controller
                 'msg' => 'สร้างโจทย์ไม่สำเร็จ'
             ]);
         }
+
+        $zip->extractTo($target_dir . $resp . '/');
+        $zip->close();
+
 
         $usernmae = DB::table('user_access')->where('classcode', $classcode)->join($this->usertable, 'user_access.username', '=', 'users.username')->where('users.role', 'student')->get('users.username')->toArray() ?: [];
         $usernmae = array_column($usernmae, 'username') ?: [];
@@ -242,7 +260,11 @@ class TaskController extends Controller
         }
 
         $open = date('c', time());
-        $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->get();
+        if ($user->role === 'student') {
+            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->get();
+        } else {
+            $res = DB::table($this->problemTable)->where('classcode', $classcode)->get();
+        }
 
         if (!$res) {
             return response()->json([
@@ -270,76 +292,12 @@ class TaskController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
         $open = date('c', time());
-        $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('problem_id', $id)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->first();
-
-        if (!$res) {
-            return response()->json([
-                'status' => false,
-                'msg' => 'ไม่สามารถดึงข้อมูลได้'
-            ]);
+        if ($user->role === 'student') {
+            $res = DB::table($this->problemTable)->where('problem_id', $id)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->first();
+        } else {
+            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->first();
         }
 
-        return response()->json([
-            'status' => true,
-            'msg' => 'ข้อมูลโจทย์',
-            'data' => $res,
-        ]);
-    }
-
-    public function getTaskAdmin(Request $request)
-    {
-        $classcode  = $request->input('classcode', '');
-        $user = auth()->user();
-
-        $rolebase = new RoleBase();
-        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
-            ], Response::HTTP_FORBIDDEN);
-        }
-        if (!$rolebase->isTeacherOrAdmin($user)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ], Response::HTTP_FORBIDDEN);
-        }
-
-        $res = DB::table($this->problemTable)->where('classcode', $classcode)->get();
-
-        if (!$res) {
-            return response()->json([
-                'status' => false,
-                'msg' => 'ไม่สามารถดึงข้อมูลได้'
-            ]);
-        }
-
-        return response()->json([
-            'status' => true,
-            'msg' => 'ข้อมูลโจทย์',
-            'data' => $res,
-        ]);
-    }
-
-    public function getTaskByIdAdmin(int $id, Request $request)
-    {
-        $user = auth()->user();
-        $rolebase = new RoleBase();
-        $classcode  = $request->input('classcode', '');
-        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
-            ], Response::HTTP_FORBIDDEN);
-        }
-        if (!$rolebase->isTeacherOrAdmin($user)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ], Response::HTTP_FORBIDDEN);
-        }
-
-        $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->first();
         if (!$res) {
             return response()->json([
                 'status' => false,
