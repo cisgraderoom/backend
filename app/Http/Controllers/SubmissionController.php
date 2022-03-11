@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Response;
 
+use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\Jobs\RabbitMQJob;
+
 class SubmissionController extends Controller
 {
     use Constant;
@@ -32,7 +34,24 @@ class SubmissionController extends Controller
                 'msg' => 'ไม่สามารถส่งงานได้ขณะนี้'
             ]);
         }
-        $code  = $request->input('code', null);
+        if (!isset($_FILES['code'])) {
+            return response()->json([
+                'status' => false,
+                'msg' => 'กรุณาแนบไฟล์'
+            ]);
+        }
+
+        $extension = explode('.', $_FILES['code']['name'])[1];
+        var_dump($extension);
+        if (!in_array($extension, ['c', 'cpp', 'java'])) {
+            return response()->json([
+                'status' => false,
+                'msg' => 'นามสกุลไฟล์ไม่ถูกต้อง'
+            ]);
+        }
+
+        $code = file_get_contents($_FILES['code']['tmp_name']);
+
         $result = "Queue";
 
         $res = DB::table($this->submissionTable)->insert([
@@ -40,7 +59,7 @@ class SubmissionController extends Controller
             'classcode' => $classcode,
             'problem_id' => $id,
             'code' => $code,
-            'lang' => 'c',
+            'lang' => $extension,
             'result' => $result,
             'created_at' => date('Y-m-d:h:i:s', time()),
         ]);
@@ -57,6 +76,8 @@ class SubmissionController extends Controller
             'classcode' => $classcode,
             'problem_id' => $id,
         ]);
+
+        new RabbitMQJob()->;
 
         return response()->json([
             'status' => true,

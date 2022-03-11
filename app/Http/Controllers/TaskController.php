@@ -118,13 +118,10 @@ class TaskController extends Controller
         $rolebase = new RoleBase();
         $problemName = $request->input('problemName', '');
         $problemDesc = $request->input('problemDesc', '');
-        // $score = $request->input('score', 0);
         $classcode  = $request->input('classcode');
         $openAt = $request->input('open', time());
         $closeAt = $request->input('close', null);
         $openAt = date('c', $openAt);
-        // $files = $request->hasFile('asset');
-        // $path = Storage::putFile('testcase', $request->file('testcase'));
         if ($closeAt != null) {
             $closeAt = date('c', $closeAt);
             if ($openAt >= $closeAt) {
