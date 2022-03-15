@@ -79,6 +79,7 @@ class TaskController extends Controller
             'open_at' => $openAt,
             'close_at' => $closeAt,
             'testcase' => $testcase,
+            'asset' => $asset_target_file,
         ]);
 
         if (!$resp) {
@@ -121,22 +122,16 @@ class TaskController extends Controller
         $classcode  = $request->input('classcode');
         $openAt = $request->input('open', time());
         $closeAt = $request->input('close', null);
-        $openAt = date('c', $openAt);
+        $openAt = date('Y-m-d H:i:s', $openAt);
+
         if ($closeAt != null) {
-            $closeAt = date('c', $closeAt);
+            $closeAt = date('Y-m-d H:i:s', $closeAt);
             if ($openAt >= $closeAt) {
                 return response()->json([
                     'status' => false,
                     'message' => 'ตั้งเวลาผิดพลาด'
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
-        }
-
-        if (!$rolebase->isTeacherOrAdmin($user)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
-            ], Response::HTTP_FORBIDDEN);
         }
 
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
@@ -146,14 +141,25 @@ class TaskController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $resp = DB::table($this->problemTable)->update([
-            'product_id' => $id,
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($_FILES['asset']) {
+            $asset_target_dir = storage_path("asset/");
+            $asset_target_file = $asset_target_dir . time() . '_' . basename($_FILES['asset']['name']);
+            move_uploaded_file($_FILES['asset']['tmp_name'], $asset_target_file);
+        }
+
+        $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
             'problem_name' => $problemName,
             'problem_desc' => $problemDesc,
-            'username' => $user->username,
-            'classcode' => $classcode,
             'open_at' => $openAt,
             'close_at' => $closeAt,
+            'asset' => $asset_target_file,
         ]);
 
         if (!$resp) {

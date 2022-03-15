@@ -74,16 +74,16 @@ return [
         'rabbitmq' => [
 
             'driver' => 'rabbitmq',
-            'queue' => env('RABBITMQ_QUEUE', 'default'),
+            // 'queue' => env('RABBITMQ_QUEUE', 'cisgraderoom.judge.result'),
             'connection' => PhpAmqpLib\Connection\AMQPLazyConnection::class,
 
             'hosts' => [
                 [
                     'host' => env('RABBITMQ_HOST', '127.0.0.1'),
                     'port' => env('RABBITMQ_PORT', 5672),
-                    'user' => env('RABBITMQ_USER', 'cisgraderoom'),
+                    'user' => env('RABBITMQ_USER', 'cisgraderoomcloud'),
                     'password' => env('RABBITMQ_PASSWORD', 'cisgraderoom'),
-                    'vhost' => env('RABBITMQ_VHOST', '/'),
+                    'vhost' => env('RABBITMQ_VHOST', 'judge'),
                 ],
             ],
 
@@ -96,7 +96,8 @@ return [
                     'passphrase' => env('RABBITMQ_SSL_PASSPHRASE', null),
                 ],
                 'queue' => [
-                    'job' => VladimirYuldashev\LaravelQueueRabbitMQ\Queue\Jobs\RabbitMQJob::class,
+                    'job' =>
+                    VladimirYuldashev\LaravelQueueRabbitMQ\Queue\Jobs\RabbitMQJob::class,
                 ],
             ],
         ],

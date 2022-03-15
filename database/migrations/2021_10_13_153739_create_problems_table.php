@@ -24,12 +24,11 @@ class CreateProblemsTable extends Migration
             $table->boolean('is_delete')->default(false);
             $table->integer('testcase');
             $table->double('max_score', 5, 2);
-            $table->string('assest')->nullable();
+            $table->string('asset')->nullable();
             $table->string('username', 20);
             $table->string('classcode', 7);
             $table->foreign('username')->references('username')->on('user_access');
             $table->foreign('classcode')->references('classcode')->on('user_access');
-            $table->timestamps();
         });
     }
 

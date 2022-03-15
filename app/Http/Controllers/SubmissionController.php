@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Helper\Constant;
 use App\Helper\PageInfo;
 use App\Helper\RoleBase;
+use App\Http\Jobs\Submission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Response;
 
-use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\Jobs\RabbitMQJob;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Message\AMQPMessage;
 
 class SubmissionController extends Controller
 {
@@ -76,8 +78,6 @@ class SubmissionController extends Controller
             'classcode' => $classcode,
             'problem_id' => $id,
         ]);
-
-        new RabbitMQJob()->;
 
         return response()->json([
             'status' => true,
@@ -206,5 +206,26 @@ class SubmissionController extends Controller
             'status' => false,
             'data' => $res
         ]);
+    }
+
+    public function test()
+    {
+        $data = [
+            'language' => 'c',
+            'code' => 'sss',
+        ];
+        $this->Judge($data);
+    }
+
+    public function Judge(array $data)
+    {
+        $connection = new AMQPStreamConnection('127.0.0.1', 5672, 'cisgraderoomcloud', 'cisgraderoom');
+        $channel = $connection->channel();
+        $channel->exchange_declare('cisgraderoom.judge', 'topic', false, true, false);
+        $channel->queue_declare('cisgraderoom.judge.result', false, true, false, false);
+        $msg = new AMQPMessage(json_encode($data));
+        $channel->basic_publish($msg, 'cisgraderoom.judge', 'cisgraderoom.judge.result.*');
+        $channel->close();
+        $connection->close();
     }
 }
