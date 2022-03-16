@@ -36,6 +36,7 @@ class SubmissionController extends Controller
                 'msg' => 'ไม่สามารถส่งงานได้ขณะนี้'
             ]);
         }
+
         if (!isset($_FILES['code'])) {
             return response()->json([
                 'status' => false,
@@ -44,7 +45,6 @@ class SubmissionController extends Controller
         }
 
         $extension = explode('.', $_FILES['code']['name'])[1];
-        var_dump($extension);
         if (!in_array($extension, ['c', 'cpp', 'java'])) {
             return response()->json([
                 'status' => false,
@@ -96,7 +96,7 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)->latest()->first();
+        $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)->where('username', $user->username)->latest()->first();
         if (!$res) {
             return response()->json([
                 'status' => false,
@@ -210,15 +210,40 @@ class SubmissionController extends Controller
 
     public function test()
     {
-        $data = [
-            'language' => 'c',
-            'code' => 'sss',
-        ];
+        // $code = preg_replace(
+        //     "/<br\W*?\/>/",
+        //     "\n",
+        //     '// C program to implement recursive Binary Search\r\n#include <stdio.h>\r\n\r\n// A recursive binary search function. It returns\r\n// location of x in given array arr[l..r] is present,\r\n// otherwise -1\r\nint binarySearch(int arr[], int l, int r, int x)\r\n{\r\n\tif (r >= l) {\r\n\t\tint mid = l + (r - l) / 2;\r\n\r\n\t\t// If the element is present at the middle\r\n\t\t// itself\r\n\t\tif (arr[mid] == x)\r\n\t\t\treturn mid;\r\n\r\n\t\t// If element is smaller than mid, then\r\n\t\t// it can only be present in left subarray\r\n\t\tif (arr[mid] > x)\r\n\t\t\treturn binarySearch(arr, l, mid - 1, x);\r\n\r\n\t\t// Else the element can only be present\r\n\t\t// in right subarray\r\n\t\treturn binarySearch(arr, mid + 1, r, x);\r\n\t}\r\n\r\n\t// We reach here when element is not\r\n\t// present in array\r\n\treturn -1;\r\n}\r\n\r\nint main(void)\r\n{\r\n\tint arr[] = { 2, 3, 4, 10, 40 };\r\n\tint n = sizeof(arr) / sizeof(arr[0]);\r\n\tint x = 10;\r\n\tint result = binarySearch(arr, 0, n - 1, x);\r\n\t(result == -1)\r\n\t\t? printf(\"Element is not present in array\")\r\n\t\t: printf(\"Element is present at index %d\", result);\r\n\treturn 0;\r\n}\r\n'
+        // );
+        // $data = [
+        //     'language' => 'c',
+        //     'code' => $code,
+        //     // 'input' => ['1 \n 1', '3 \n 5'],
+        //     // 'output' => ['2', '8'],
+        //     'time_limit' => 1,
+        //     'mem_limit' => 2,
+        //     'problem_id' => 2,
+        //     'username' => 'student01',
+        // ];
         $this->Judge($data);
     }
 
     public function Judge(array $data)
     {
+
+        $input = [];
+        $output = [];
+        $res = DB::table('problems')->where('problem_id', $data['problem_id'])->first();
+        if (!$res) {
+            return false;
+        }
+        for ($i = 1; $i <= $res->testcase; $i++) {
+            array_push($input, preg_replace("/<br\W*?\/>/", "\n", file_get_contents(storage_path('testcase/' . $data['problem_id'] . '/' . $i . '.in'))));
+            array_push($output, preg_replace("/<br\W*?\/>/", "\n", file_get_contents(storage_path('testcase/' . $data['problem_id'] . '/' . $i . '.out'))));
+        }
+        $data['input'] = $input;
+        $data['output'] = $output;
+        $data['testcase'] = $res->testcase;
         $connection = new AMQPStreamConnection('127.0.0.1', 5672, 'cisgraderoomcloud', 'cisgraderoom');
         $channel = $connection->channel();
         $channel->exchange_declare('cisgraderoom.judge', 'topic', false, true, false);
