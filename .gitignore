@@ -86,4 +86,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+*/testcase/*
+*/asset/*
+
 # End of https://www.toptal.com/developers/gitignore/api/laravel,composer,macos,windows

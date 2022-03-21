@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Helper\Constant;
 use App\Helper\PageInfo;
 use App\Helper\RoleBase;
+use App\Http\Jobs\Submission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Response;
+
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Message\AMQPMessage;
 
 class SubmissionController extends Controller
 {
@@ -25,22 +29,39 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
         $open = date('c', time());
-        $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->where('problem_id', $id)->first();
-        if (!$res) {
+        $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->where('problem_id', $id)->first();
+        if (!$data) {
             return response()->json([
                 'status' => false,
                 'msg' => 'ไม่สามารถส่งงานได้ขณะนี้'
             ]);
         }
-        $code  = $request->input('code', null);
+
+        if (!isset($_FILES['code'])) {
+            return response()->json([
+                'status' => false,
+                'msg' => 'กรุณาแนบไฟล์'
+            ]);
+        }
+
+        $extension = explode('.', $_FILES['code']['name'])[1];
+        if (!in_array($extension, ['c', 'cpp', 'java'])) {
+            return response()->json([
+                'status' => false,
+                'msg' => 'นามสกุลไฟล์ไม่ถูกต้อง'
+            ]);
+        }
+
+        $code = file_get_contents($_FILES['code']['tmp_name']);
+
         $result = "Queue";
 
-        $res = DB::table($this->submissionTable)->insert([
+        $res = DB::table($this->submissionTable)->insertGetId([
             'username' => $user->username,
             'classcode' => $classcode,
             'problem_id' => $id,
             'code' => $code,
-            'lang' => 'c',
+            'lang' => $extension,
             'result' => $result,
             'created_at' => date('Y-m-d:h:i:s', time()),
         ]);
@@ -56,6 +77,17 @@ class SubmissionController extends Controller
             'username' => $user->username,
             'classcode' => $classcode,
             'problem_id' => $id,
+        ]);
+
+        $this->Judge([
+            'language' => $extension,
+            'code' => $code,
+            'time_limit' => 1,
+            'mem_limit' => 2000,
+            'problem_id' => $id,
+            'username' => $user->username,
+            'max_score' => $data->max_score,
+            'submission_id' => $res,
         ]);
 
         return response()->json([
@@ -75,7 +107,7 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)->latest()->first();
+        $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)->where('username', $user->username)->latest()->first();
         if (!$res) {
             return response()->json([
                 'status' => false,
@@ -185,5 +217,32 @@ class SubmissionController extends Controller
             'status' => false,
             'data' => $res
         ]);
+    }
+
+
+    public function Judge(array $data)
+    {
+
+        $input = [];
+        $output = [];
+        $res = DB::table('problems')->where('problem_id', $data['problem_id'])->first();
+        if (!$res) {
+            return false;
+        }
+        for ($i = 1; $i <= $res->testcase; $i++) {
+            array_push($input, preg_replace("/<br\W*?\/>/", "\n", file_get_contents(storage_path('testcase/' . $data['problem_id'] . '/' . $i . '.in'))));
+            array_push($output, preg_replace("/<br\W*?\/>/", "\n", file_get_contents(storage_path('testcase/' . $data['problem_id'] . '/' . $i . '.out'))));
+        }
+        $data['input'] = $input;
+        $data['output'] = $output;
+        $data['testcase'] = $res->testcase;
+        $connection = new AMQPStreamConnection('127.0.0.1', 5672, 'cisgraderoomcloud', 'cisgraderoom');
+        $channel = $connection->channel();
+        $channel->exchange_declare('cisgraderoom.judge', 'topic', false, true, false);
+        $channel->queue_declare('cisgraderoom.judge.result', false, true, false, false);
+        $msg = new AMQPMessage(json_encode($data));
+        $channel->basic_publish($msg, 'cisgraderoom.judge', 'cisgraderoom.judge.result.*');
+        $channel->close();
+        $connection->close();
     }
 }

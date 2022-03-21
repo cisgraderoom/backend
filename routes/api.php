@@ -23,6 +23,8 @@ Route::get("/health", function () {
     ], HTTP_Response::HTTP_OK);
 });
 
+Route::get("/test", [SubmissionController::class, 'test']);
+
 Route::prefix('/user')->group(function () {
     Route::get('/checklogin', [UserController::class, 'checklogin'])->name('login');
     Route::post('/login', [UserController::class, 'login']);
@@ -57,14 +59,14 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/task')->group(function () {
+        Route::post('/new', [TaskController::class, 'newTasks']);
         Route::put('/{id}', [TaskController::class, 'editTask']);
-        Route::post('/new', [TaskController::class, 'newTask']);
         Route::get('/list', [TaskController::class, 'getTask']);
         Route::get('/{id}', [TaskController::class, 'getTaskById']);
-        Route::get('/admin/list', [TaskController::class, 'getTask']);
         Route::get('/admin/{id}', [TaskController::class, 'getTaskById']);
         Route::put('/status/{id}', [TaskController::class, 'hiddenProblem']);
         Route::delete('/{id}', [TaskController::class, 'deleteProblem']);
+        Route::get("/asset/{classcode}/{id}", [TaskController::class, 'downloadAsset']);
     });
 });
 
