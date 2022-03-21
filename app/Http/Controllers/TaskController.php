@@ -296,7 +296,7 @@ class TaskController extends Controller
         }
         $open = date('c', time());
         if ($user->role === 'student') {
-            $res = DB::table($this->problemTable)->where('problem_id', $id)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->first();
+            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->first();
         } else {
             $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->first();
         }
@@ -313,5 +313,43 @@ class TaskController extends Controller
             'msg' => 'ข้อมูลโจทย์',
             'data' => $res,
         ]);
+    }
+
+    public function downloadAsset(string $classcode, int $id, Request $request)
+    {
+        $user = auth()->user();
+        $rolebase = new RoleBase();
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+        $open = date('c', time());
+        if ($user->role === 'student') {
+            $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->first();
+            if (!$data) {
+                return response()->json([
+                    'status' => false,
+                    'msg' => 'ไม่สามารถเข้าถึงได้'
+                ]);
+            }
+            header('Content-type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . $data->asset . '"');
+            header('Content-Transfer-Encoding: binary');
+            readfile($data->asset);
+        } else {
+            $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->first();
+            if (!$data) {
+                return response()->json([
+                    'status' => false,
+                    'msg' => 'ไม่สามารถเข้าถึงได้'
+                ]);
+            }
+            header('Content-type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . $data->asset . '"');
+            header('Content-Transfer-Encoding: binary');
+            readfile($data->asset);
+        }
     }
 }

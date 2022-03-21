@@ -1,0 +1,20 @@
+version: "3.3"
+
+services:
+  cisgraderoom-api:
+    container_name: cisgraderoom-api
+    image: cisgraderoom/api
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    env_file:
+      - ./.env
+    volumes:
+      - .:/app
+    networks:
+      - cisgraderoom
+networks:
+  cisgraderoom:
+    external: true

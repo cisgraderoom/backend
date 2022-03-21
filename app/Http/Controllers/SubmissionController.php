@@ -29,8 +29,8 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
         $open = date('c', time());
-        $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->where('problem_id', $id)->first();
-        if (!$res) {
+        $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->where('problem_id', $id)->first();
+        if (!$data) {
             return response()->json([
                 'status' => false,
                 'msg' => 'ไม่สามารถส่งงานได้ขณะนี้'
@@ -56,7 +56,7 @@ class SubmissionController extends Controller
 
         $result = "Queue";
 
-        $res = DB::table($this->submissionTable)->insert([
+        $res = DB::table($this->submissionTable)->insertGetId([
             'username' => $user->username,
             'classcode' => $classcode,
             'problem_id' => $id,
@@ -77,6 +77,17 @@ class SubmissionController extends Controller
             'username' => $user->username,
             'classcode' => $classcode,
             'problem_id' => $id,
+        ]);
+
+        $this->Judge([
+            'language' => $extension,
+            'code' => $code,
+            'time_limit' => 1,
+            'mem_limit' => 2000,
+            'problem_id' => $id,
+            'username' => $user->username,
+            'max_score' => $data->max_score,
+            'submission_id' => $res,
         ]);
 
         return response()->json([
@@ -208,25 +219,6 @@ class SubmissionController extends Controller
         ]);
     }
 
-    public function test()
-    {
-        // $code = preg_replace(
-        //     "/<br\W*?\/>/",
-        //     "\n",
-        //     '// C program to implement recursive Binary Search\r\n#include <stdio.h>\r\n\r\n// A recursive binary search function. It returns\r\n// location of x in given array arr[l..r] is present,\r\n// otherwise -1\r\nint binarySearch(int arr[], int l, int r, int x)\r\n{\r\n\tif (r >= l) {\r\n\t\tint mid = l + (r - l) / 2;\r\n\r\n\t\t// If the element is present at the middle\r\n\t\t// itself\r\n\t\tif (arr[mid] == x)\r\n\t\t\treturn mid;\r\n\r\n\t\t// If element is smaller than mid, then\r\n\t\t// it can only be present in left subarray\r\n\t\tif (arr[mid] > x)\r\n\t\t\treturn binarySearch(arr, l, mid - 1, x);\r\n\r\n\t\t// Else the element can only be present\r\n\t\t// in right subarray\r\n\t\treturn binarySearch(arr, mid + 1, r, x);\r\n\t}\r\n\r\n\t// We reach here when element is not\r\n\t// present in array\r\n\treturn -1;\r\n}\r\n\r\nint main(void)\r\n{\r\n\tint arr[] = { 2, 3, 4, 10, 40 };\r\n\tint n = sizeof(arr) / sizeof(arr[0]);\r\n\tint x = 10;\r\n\tint result = binarySearch(arr, 0, n - 1, x);\r\n\t(result == -1)\r\n\t\t? printf(\"Element is not present in array\")\r\n\t\t: printf(\"Element is present at index %d\", result);\r\n\treturn 0;\r\n}\r\n'
-        // );
-        // $data = [
-        //     'language' => 'c',
-        //     'code' => $code,
-        //     // 'input' => ['1 \n 1', '3 \n 5'],
-        //     // 'output' => ['2', '8'],
-        //     'time_limit' => 1,
-        //     'mem_limit' => 2,
-        //     'problem_id' => 2,
-        //     'username' => 'student01',
-        // ];
-        $this->Judge($data);
-    }
 
     public function Judge(array $data)
     {

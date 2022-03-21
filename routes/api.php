@@ -66,6 +66,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::get('/admin/{id}', [TaskController::class, 'getTaskById']);
         Route::put('/status/{id}', [TaskController::class, 'hiddenProblem']);
         Route::delete('/{id}', [TaskController::class, 'deleteProblem']);
+        Route::get("/asset/{classcode}/{id}", [TaskController::class, 'downloadAsset']);
     });
 });
 
