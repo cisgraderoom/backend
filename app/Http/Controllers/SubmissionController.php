@@ -28,6 +28,7 @@ class SubmissionController extends Controller
                 'message' => 'คุณไม่มีสิทธิในส่วนนี้'
             ], Response::HTTP_FORBIDDEN);
         }
+
         $open = date('c', time());
         $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->where('problem_id', $id)->first();
         if (!$data) {
@@ -53,6 +54,11 @@ class SubmissionController extends Controller
         }
 
         $code = file_get_contents($_FILES['code']['tmp_name']);
+
+        $username = $user->username;
+        $code_target_dir = storage_path("sourcecode/");
+        $code_target_file = $code_target_dir . "{$id}_${username}." . $extension;
+        move_uploaded_file($_FILES['code']['tmp_name'], $code_target_file);
 
         $result = "Queue";
 
@@ -80,14 +86,16 @@ class SubmissionController extends Controller
         ]);
 
         $this->Judge([
+            'mode' => 'new',
             'language' => $extension,
             'code' => $code,
-            'time_limit' => 1,
-            'mem_limit' => 2000,
+            'time_limit' => $data->time_limit,
+            'mem_limit' => $data->mem_limit * 1000,
             'problem_id' => $id,
             'username' => $user->username,
             'max_score' => $data->max_score,
             'submission_id' => $res,
+            'classcode' => $classcode,
         ]);
 
         return response()->json([
@@ -244,5 +252,96 @@ class SubmissionController extends Controller
         $channel->basic_publish($msg, 'cisgraderoom.judge', 'cisgraderoom.judge.result.*');
         $channel->close();
         $connection->close();
+    }
+
+
+    public function NewJudgeAndPlagiarism(string $classcode, string $mode, int $id)
+    {
+        $rolebase = new RoleBase();
+        $user = auth()->user();
+
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+        $res = DB::table('problems')->where('problem_id', $id)->first();
+        if (!$res) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่สามารถใช้งานได้'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $check = DB::table('jobs')->where('classcode', $classcode)->where('username', $user->username)->orderBy('id', 'desc')->first();
+        if ($check) {
+            if (!$check->status) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'คุณมีงานที่กำลังทำอยู่หลังบ้านกรุณารอสักครู่'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        if ($mode === 'judge') {
+            $job = DB::table("jobs")->insertGetId([
+                'username' => $user->username,
+                'classcode' => $classcode,
+                'key' => 'J',
+            ]);
+            if (!$job) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'ไม่สามารถส่งตรวจได้'
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+            $sql = "SELECT a.username,a.code,a.lang FROM submission a INNER JOIN ( SELECT username, MAX(created_at) created_at FROM submission WHERE problem_id = ${id}  GROUP BY username) b ON a.username = b.username AND a.created_at = b.created_at";
+            $query = DB::select(DB::raw($sql));
+            foreach ($query as $data) {
+                $this->Judge([
+                    'mode' => 'again',
+                    'language' => $data->lang,
+                    'username' => $res->username,
+                    'code' => $data->code,
+                    'time_limit' => $res->time_limit,
+                    'mem_limit' => $res->mem_limit * 1000,
+                    'problem_id' => $id,
+                    'username' => $data->username,
+                    'max_score' => $res->max_score,
+                    'classcode' => $classcode,
+                    'submission_id' => rand(100000, 999999),
+                    'job_id' => $job,
+                ]);
+            }
+        }
+
+        $this->Judge([
+            'mode' => 'success',
+            'job_id' => $job,
+            'language' => '',
+            'username' => '',
+            'code' => '',
+            'time_limit' => 1,
+            'mem_limit' => 2000,
+            'problem_id' => 1,
+            'username' => '',
+            'max_score' => 0.00,
+            'classcode' => '',
+            'submission_id' => rand(100000, 999999),
+            'job_id' => $job,
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'ระบบกำลังทำรายการตรวจสอบข้อสอบนี้'
+        ], Response::HTTP_OK);
     }
 }

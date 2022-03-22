@@ -6,6 +6,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
+use App\Http\Jobs\Submission;
 use Facade\FlareClient\Http\Response;
 use Facade\Ignition\Tabs\Tab;
 use Illuminate\Http\Request;
@@ -78,6 +79,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::get('/score/{classcode}', [SubmissionController::class, 'scoreByUser']);
         Route::get('/score/classroom/{classcode}/all', [SubmissionController::class, 'scoreByClassroom']);
         Route::get('/list/{classcode}/problem/{problem}', [SubmissionController::class, 'getListSubmission']);
+        Route::post('/manage/{classcode}/{mode}/{id}', [SubmissionController::class, 'NewJudgeAndPlagiarism']);
     });
 });
 
