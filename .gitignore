@@ -88,5 +88,6 @@ $RECYCLE.BIN/
 
 */testcase/*
 */asset/*
+*/sourcecode/*
 
 # End of https://www.toptal.com/developers/gitignore/api/laravel,composer,macos,windows

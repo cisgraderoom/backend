@@ -6,6 +6,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
+use App\Http\Jobs\Submission;
 use Facade\FlareClient\Http\Response;
 use Facade\Ignition\Tabs\Tab;
 use Illuminate\Http\Request;
@@ -60,7 +61,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/task')->group(function () {
         Route::post('/new', [TaskController::class, 'newTasks']);
-        Route::put('/{id}', [TaskController::class, 'editTask']);
+        Route::post('/{id}', [TaskController::class, 'editTask']);
         Route::get('/list', [TaskController::class, 'getTask']);
         Route::get('/{id}', [TaskController::class, 'getTaskById']);
         Route::get('/admin/{id}', [TaskController::class, 'getTaskById']);
@@ -75,9 +76,11 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::post('/submit/{id}', [SubmissionController::class, 'submit']);
         Route::get('/score/{classcode}/{id}', [SubmissionController::class, 'scoreByProblemId']);
         Route::get('/score/{classcode}', [SubmissionController::class, 'scoreByUser']);
-        Route::get('/score/{classcode}', [SubmissionController::class, 'scoreByUser']);
         Route::get('/score/classroom/{classcode}/all', [SubmissionController::class, 'scoreByClassroom']);
         Route::get('/list/{classcode}/problem/{problem}', [SubmissionController::class, 'getListSubmission']);
+        Route::post('/manage/{classcode}/{mode}/{id}', [SubmissionController::class, 'NewJudgeAndPlagiarism']);
+        Route::get('/manage/{classcode}/{id}', [SubmissionController::class, 'getPlagiarism']);
+        Route::get('/manage/{classcode}/{id}/{owner}/{compare}', [SubmissionController::class, 'getCodePlagiarism']);
     });
 });
 

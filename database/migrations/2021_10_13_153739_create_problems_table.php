@@ -25,6 +25,8 @@ class CreateProblemsTable extends Migration
             $table->integer('testcase');
             $table->double('max_score', 5, 2);
             $table->string('asset')->nullable();
+            $table->integer('time_limit')->default(1);
+            $table->integer('mem_limit')->default(2);
             $table->string('username', 20);
             $table->string('classcode', 7);
             $table->foreign('username')->references('username')->on('user_access');
