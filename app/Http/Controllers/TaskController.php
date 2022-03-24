@@ -119,6 +119,7 @@ class TaskController extends Controller
         $rolebase = new RoleBase();
         $problemName = $request->input('problemName', '');
         $problemDesc = $request->input('problemDesc', '');
+        $score = (float) $request->input('max_score', 0.00);
         $classcode  = $request->input('classcode');
         $openAt = $request->input('open', time());
         $closeAt = $request->input('close', null);
@@ -132,6 +133,11 @@ class TaskController extends Controller
                     'message' => 'ตั้งเวลาผิดพลาด'
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'ตั้งเวลาผิดพลาด'
+            ]);
         }
 
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
@@ -148,19 +154,60 @@ class TaskController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        if ($_FILES['asset']) {
+        if (isset($_FILES['asset'])) {
             $asset_target_dir = storage_path("asset/");
             $asset_target_file = $asset_target_dir . time() . '_' . basename($_FILES['asset']['name']);
             move_uploaded_file($_FILES['asset']['tmp_name'], $asset_target_file);
         }
 
-        $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
-            'problem_name' => $problemName,
-            'problem_desc' => $problemDesc,
-            'open_at' => $openAt,
-            'close_at' => $closeAt,
-            'asset' => $asset_target_file,
-        ]);
+        if (isset($_FILES['testcase'])) {
+            $zip = new ZipArchive();
+            $target_dir = storage_path("testcase/");
+            $target_file = $target_dir . time() . '_' . basename($_FILES['testcase']['name']);
+            move_uploaded_file($_FILES['testcase']['tmp_name'], $target_file);
+            $zip->open($target_file);
+            $testcase = ceil($zip->count() / 2);
+            $zip->extractTo($target_dir . $id . '/');
+            $zip->close();
+        }
+
+        if (isset($_FILES['asset']) && isset($_FILES['testcase'])) {
+            $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
+                'problem_name' => $problemName,
+                'problem_desc' => $problemDesc,
+                'open_at' => $openAt,
+                'close_at' => $closeAt,
+                'asset' => $asset_target_file,
+                'max_score' => $score,
+                'testcase' => $testcase,
+            ]);
+        } else if (isset($_FILES['asset'])) {
+            $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
+                'problem_name' => $problemName,
+                'problem_desc' => $problemDesc,
+                'open_at' => $openAt,
+                'close_at' => $closeAt,
+                'max_score' => $score,
+                'asset' => $asset_target_file,
+            ]);
+        } else if (isset($_FILES['testcase'])) {
+            $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
+                'problem_name' => $problemName,
+                'problem_desc' => $problemDesc,
+                'open_at' => $openAt,
+                'close_at' => $closeAt,
+                'max_score' => $score,
+                'testcase' => $testcase,
+            ]);
+        } else {
+            $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
+                'problem_name' => $problemName,
+                'problem_desc' => $problemDesc,
+                'open_at' => $openAt,
+                'max_score' => $score,
+                'close_at' => $closeAt,
+            ]);
+        }
 
         if (!$resp) {
             return response()->json([
@@ -315,7 +362,7 @@ class TaskController extends Controller
         ]);
     }
 
-    public function downloadAsset(string $classcode, int $id, Request $request)
+    public function downloadAsset(string $classcode, int $id)
     {
         $user = auth()->user();
         $rolebase = new RoleBase();
@@ -334,10 +381,7 @@ class TaskController extends Controller
                     'msg' => 'ไม่สามารถเข้าถึงได้'
                 ]);
             }
-            header('Content-type: application/pdf');
-            header('Content-Disposition: attachment; filename="' . $data->asset . '"');
-            header('Content-Transfer-Encoding: binary');
-            readfile($data->asset);
+            return response()->file($data->asset);
         } else {
             $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->first();
             if (!$data) {
@@ -346,10 +390,7 @@ class TaskController extends Controller
                     'msg' => 'ไม่สามารถเข้าถึงได้'
                 ]);
             }
-            header('Content-type: application/pdf');
-            header('Content-Disposition: attachment; filename="' . $data->asset . '"');
-            header('Content-Transfer-Encoding: binary');
-            readfile($data->asset);
+            return response()->file($data->asset);
         }
     }
 }

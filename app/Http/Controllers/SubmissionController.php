@@ -100,13 +100,15 @@ class SubmissionController extends Controller
 
         return response()->json([
             'status' => true,
-            'msg' => 'ส่งงานสำเร็จ'
+            'msg' => 'ส่งงานสำเร็จ',
+            'submission_id' => $res,
         ]);
     }
 
-    public function scoreByProblemId(string $classcode, int $id)
+    public function scoreByProblemId(string $classcode, int $id, Request $request)
     {
         $user = auth()->user();
+        $sub_id = (int) $request->input('submission_id', 0);
         $rolebase = new RoleBase();
         if (!$rolebase->checkUserHasPermission($user, $classcode) || $rolebase->isTeacherOrAdmin($user)) {
             return response()->json([
@@ -115,12 +117,24 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)->where('username', $user->username)->latest()->first();
-        if (!$res) {
-            return response()->json([
-                'status' => false,
-                'msg' => 'ไม่พบการส่งงาน'
-            ]);
+        if ($sub_id !== 0) {
+            $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)
+                ->where('username', $user->username)
+                ->where('submission_id', $sub_id)->first();
+            if (!$res) {
+                return response()->json([
+                    'status' => false,
+                    'msg' => 'ไม่พบดึงข้อมูล'
+                ]);
+            }
+        } else {
+            $res = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $id)->where('username', $user->username)->latest()->first();
+            if (!$res) {
+                return response()->json([
+                    'status' => false,
+                    'msg' => 'ไม่พบการส่งงาน'
+                ]);
+            }
         }
 
         return response()->json([
@@ -193,7 +207,7 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $datas = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray() ?: [];
+        $datas = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->offset(($page - 1) * $this->limit)->take($this->limit)->orderBy('created_at', 'desc')->get()->toArray() ?: [];
         $total = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->count() ?: 0;
         return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
     }
@@ -210,10 +224,11 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $problem = DB::table($this->problemTable)->where('classcode', $classcode)->where('is_delete', false)->get('problem_id')->toArray();
-        $problem  = array_column($problem, 'problem_id') ?: [];
+        $problem = DB::table($this->problemTable)->where('classcode', $classcode)->where('is_delete', false)->get(['problem_id', 'problem_name'])->toArray();
+        $problem_ids  = array_column($problem, 'problem_id') ?: [];
 
-        $res = DB::table($this->scoreTable)->where('classcode', $classcode)->whereIn('problem_id', $problem)->where('username', $user->username)->get();
+        $res = DB::table($this->scoreTable)->where('classcode', $classcode)->whereIn('problem_id', $problem_ids)->where('username', $user->username)->get('score');
+        $submission  = array_column($res->toArray() ?: [], 'score') ?: [];
         if (!$res) {
             return response()->json([
                 'status' => false,
@@ -222,8 +237,12 @@ class SubmissionController extends Controller
         }
 
         return response()->json([
-            'status' => false,
-            'data' => $res
+            'status' => true,
+            'data' => [
+                'score' => $res->sum('score'),
+                'problem' => array_column($problem, 'problem_name'),
+                'submission' => $submission,
+            ]
         ]);
     }
 
@@ -252,6 +271,16 @@ class SubmissionController extends Controller
         $channel->basic_publish($msg, 'cisgraderoom.judge', 'cisgraderoom.judge.result.*');
         $channel->close();
         $connection->close();
+    }
+
+    public function Plagiarism(array $data)
+    {
+        $connection = new AMQPStreamConnection('127.0.0.1', 5672, 'cisgraderoomcloud', 'cisgraderoom');
+        $channel = $connection->channel();
+        $channel->queue_declare('cisgraderoom.plagiarism.result', false, true, false, false);
+        $msg = new AMQPMessage(json_encode($data));
+        $channel->basic_publish($msg, '', 'cisgraderoom.plagiarism.result');
+        $channel->close();
     }
 
 
@@ -291,18 +320,19 @@ class SubmissionController extends Controller
             }
         }
 
+        $job = DB::table("jobs")->insertGetId([
+            'username' => $user->username,
+            'classcode' => $classcode,
+            'key' => 'J',
+        ]);
+        if (!$job) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่สามารถส่งตรวจได้'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
         if ($mode === 'judge') {
-            $job = DB::table("jobs")->insertGetId([
-                'username' => $user->username,
-                'classcode' => $classcode,
-                'key' => 'J',
-            ]);
-            if (!$job) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'ไม่สามารถส่งตรวจได้'
-                ], Response::HTTP_INTERNAL_SERVER_ERROR);
-            }
             $sql = "SELECT a.username,a.code,a.lang FROM submission a INNER JOIN ( SELECT username, MAX(created_at) created_at FROM submission WHERE problem_id = ${id}  GROUP BY username) b ON a.username = b.username AND a.created_at = b.created_at";
             $query = DB::select(DB::raw($sql));
             foreach ($query as $data) {
@@ -321,27 +351,96 @@ class SubmissionController extends Controller
                     'job_id' => $job,
                 ]);
             }
+            $this->Judge([
+                'mode' => 'success',
+                'job_id' => $job,
+                'language' => '',
+                'username' => '',
+                'code' => '',
+                'time_limit' => 1,
+                'mem_limit' => 2000,
+                'problem_id' => 1,
+                'username' => '',
+                'max_score' => 0.00,
+                'classcode' => '',
+                'submission_id' => rand(100000, 999999),
+                'job_id' => $job,
+            ]);
         }
 
-        $this->Judge([
-            'mode' => 'success',
-            'job_id' => $job,
-            'language' => '',
-            'username' => '',
-            'code' => '',
-            'time_limit' => 1,
-            'mem_limit' => 2000,
-            'problem_id' => 1,
-            'username' => '',
-            'max_score' => 0.00,
-            'classcode' => '',
-            'submission_id' => rand(100000, 999999),
-            'job_id' => $job,
-        ]);
+        if ($mode === "plagiarism") {
+            $this->Plagiarism([
+                'problem_id' => (string) $id,
+                'jobs_id' => (string) $job,
+            ]);
+        }
 
         return response()->json([
             'status' => true,
             'message' => 'ระบบกำลังทำรายการตรวจสอบข้อสอบนี้'
+        ], Response::HTTP_OK);
+    }
+
+    public function getPlagiarism(string $classcode, int $id, Request $request)
+    {
+        $rolebase = new RoleBase();
+        $pageInfo = new PageInfo();
+        $page = (int) $request->input('page', 1);
+        $user = auth()->user();
+
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $datas = DB::table('plagiarism')->where('problem_id', $id)->offset(($page - 1) * $this->limit)->take($this->limit)->orderBy('result', 'desc')->get()->toArray() ?: [];
+        $total = DB::table('plagiarism')->where('problem_id', $id)->count() ?: 0;
+        return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
+    }
+
+    public function getCodePlagiarism(string $classcode, int $id, string $owner, string $compare)
+    {
+        $user = auth()->user();
+        $rolebase = new RoleBase();
+        if (!$rolebase->checkUserHasPermission($user, $classcode)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'คุณไม่มีสิทธิในส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $problem = DB::table($this->problemTable)->where('problem_id', $id)->first();
+        $ownerCode = DB::table('submission')->where('username', $owner)->where('problem_id', $id)->orderBy('created_at', 'desc')->first()->code ?: null;
+        $compareCode = DB::table('submission')->where('username', $compare)->where('problem_id', $id)->orderBy('created_at', 'desc')->first()->code ?: null;
+        if (!$ownerCode || !$compareCode) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบข้อมูล'
+            ], Response::HTTP_NOT_FOUND);
+        }
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'owner' => $ownerCode,
+                'compare' => $compareCode,
+                'problem' => $problem
+            ]
         ], Response::HTTP_OK);
     }
 }
