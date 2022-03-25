@@ -22,7 +22,6 @@ class CreatePlagiarismTable extends Migration
             $table->foreign('owner')->references('username')->on('users');
             $table->foreign('compare')->references('username')->on('users');
             $table->foreign('problem_id')->references('problem_id')->on('problems');
-            $table->timestamps();
         });
     }
 

@@ -137,13 +137,16 @@ class SubmissionController extends Controller
             }
         }
 
-        return response()->json([
+        $res = (array)$res;
+        $data = [
             'status' => true,
-            'msg' => $res->result == 'Queue' ? 'กำลังตรวจ' : 'ตรวจสำเร็จ',
-            'state' => $res->result == 'Queue' ? false : true,
+            'msg' => $res['result'] == 'Queue' ? 'กำลังตรวจ' : 'ตรวจสำเร็จ',
+            'state' => $res['result'] == 'Queue' ? false : true,
             'data' => $res,
-            'array_result' => $res->result != 'Queue' ? str_split($res->result) : []
-        ]);
+            'array_result' => $res['result'] != 'Queue' ? str_split($res['result']) : []
+        ];
+        $data['data']['result'] = $data['data']['result'] == 'Queue' ? 'กำลังตรวจ' : $data['data']['result'];
+        return response()->json($data);
     }
 
     public function scoreByClassroom(string $classcode)
@@ -323,7 +326,7 @@ class SubmissionController extends Controller
         $job = DB::table("jobs")->insertGetId([
             'username' => $user->username,
             'classcode' => $classcode,
-            'key' => 'J',
+            'key' => $mode === 'plagiarism' ? 'P' : 'J',
         ]);
         if (!$job) {
             return response()->json([

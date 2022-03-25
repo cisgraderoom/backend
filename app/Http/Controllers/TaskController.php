@@ -24,6 +24,8 @@ class TaskController extends Controller
         $classcode  = $request->input('classcode');
         $openAt = $request->input('open', time());
         $closeAt = $request->input('close', null);
+        $timeLimit = $request->input('timeLimit', 1);
+        $memoryLimit = $request->input('memLimit', 2);
         if (!$_FILES['testcase']) {
             return response()->json([
                 'status' => false,
@@ -80,6 +82,8 @@ class TaskController extends Controller
             'close_at' => $closeAt,
             'testcase' => $testcase,
             'asset' => $asset_target_file,
+            'time_limit' => $timeLimit,
+            'mem_limit' => $memoryLimit,
         ]);
 
         if (!$resp) {
@@ -121,23 +125,34 @@ class TaskController extends Controller
         $problemDesc = $request->input('problemDesc', '');
         $score = (float) $request->input('max_score', 0.00);
         $classcode  = $request->input('classcode');
-        $openAt = $request->input('open', time());
+        $openAt = $request->input('open', null);
         $closeAt = $request->input('close', null);
-        $openAt = date('Y-m-d H:i:s', $openAt);
+        $timeLimit = $request->input('timeLimit', 1);
+        $memoryLimit = $request->input('memLimit', 2);
+
+        if ($openAt != null) {
+            $openAt = date('Y-m-d H:i:s', $openAt);
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'ตั้งเวลาผิดพลาด',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
         if ($closeAt != null) {
             $closeAt = date('Y-m-d H:i:s', $closeAt);
             if ($openAt >= $closeAt) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'ตั้งเวลาผิดพลาด'
+                    'message' => 'ตั้งเวลาผิดพลาด',
+                    'time' => $closeAt,
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         } else {
             return response()->json([
                 'status' => false,
-                'message' => 'ตั้งเวลาผิดพลาด'
-            ]);
+                'message' => 'ตั้งเวลาผิดพลาด',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
@@ -180,6 +195,8 @@ class TaskController extends Controller
                 'asset' => $asset_target_file,
                 'max_score' => $score,
                 'testcase' => $testcase,
+                'time_limit' => $timeLimit,
+                'mem_limit' => $memoryLimit,
             ]);
         } else if (isset($_FILES['asset'])) {
             $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
@@ -189,6 +206,8 @@ class TaskController extends Controller
                 'close_at' => $closeAt,
                 'max_score' => $score,
                 'asset' => $asset_target_file,
+                'time_limit' => $timeLimit,
+                'mem_limit' => $memoryLimit,
             ]);
         } else if (isset($_FILES['testcase'])) {
             $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
@@ -198,6 +217,8 @@ class TaskController extends Controller
                 'close_at' => $closeAt,
                 'max_score' => $score,
                 'testcase' => $testcase,
+                'time_limit' => $timeLimit,
+                'mem_limit' => $memoryLimit,
             ]);
         } else {
             $resp = DB::table($this->problemTable)->where('problem_id', $id)->update([
@@ -206,6 +227,8 @@ class TaskController extends Controller
                 'open_at' => $openAt,
                 'max_score' => $score,
                 'close_at' => $closeAt,
+                'time_limit' => $timeLimit,
+                'mem_limit' => $memoryLimit,
             ]);
         }
 
@@ -311,7 +334,7 @@ class TaskController extends Controller
 
         $open = date('c', time());
         if ($user->role === 'student') {
-            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('close_at', '>=', $open)->where('open_at', '<=', $open)->where('is_hidden', false)->where('is_delete', false)->get();
+            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->where('open_at', '<=', $open)->get();
         } else {
             $res = DB::table($this->problemTable)->where('classcode', $classcode)->get();
         }
@@ -343,7 +366,7 @@ class TaskController extends Controller
         }
         $open = date('c', time());
         if ($user->role === 'student') {
-            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->first();
+            $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->where('open_at', '<=', $open)->first();
         } else {
             $res = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->first();
         }
@@ -374,7 +397,7 @@ class TaskController extends Controller
         }
         $open = date('c', time());
         if ($user->role === 'student') {
-            $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->orWhere('close_at', null)->where('open_at', '<=', $open)->first();
+            $data = DB::table($this->problemTable)->where('classcode', $classcode)->where('problem_id', $id)->where('is_hidden', false)->where('is_delete', false)->where('close_at', '>=', $open)->where('open_at', '<=', $open)->first();
             if (!$data) {
                 return response()->json([
                     'status' => false,
