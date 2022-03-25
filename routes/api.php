@@ -49,6 +49,7 @@ Route::group(
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/classroom')->group(function () {
         Route::post('/new', [ClassroomController::class, 'newClass']);
+        Route::put('/{classcode}', [ClassroomController::class, 'editClass']);
         Route::post('/join', [ClassroomController::class, 'joinClass']);
         Route::post('/add/teacher', [ClassroomController::class, 'joinTeacherClass']);
         Route::get('/list', [ClassroomController::class, 'listClass']);
@@ -61,7 +62,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::prefix('/task')->group(function () {
         Route::post('/new', [TaskController::class, 'newTasks']);
-        Route::post('/{id}', [TaskController::class, 'editTask']);
+        Route::post('/edit/{id}', [TaskController::class, 'editTask']);
         Route::get('/list', [TaskController::class, 'getTask']);
         Route::get('/{id}', [TaskController::class, 'getTaskById']);
         Route::get('/admin/{id}', [TaskController::class, 'getTaskById']);

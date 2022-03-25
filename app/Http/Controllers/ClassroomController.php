@@ -75,6 +75,50 @@ class ClassroomController extends Controller
         ], Response::HTTP_CREATED);
     }
 
+    public function editClass(string $classcode, Request $request)
+    {
+        $rolebase = new RoleBase();
+        $user = auth()->user();
+        if (!$rolebase->isTeacherOrAdmin($user)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่พบสิทธิการเข้าถึงส่วนนี้'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $classname = $request->input('classname', '');
+        $section = (int) $request->input('section', 1);
+        $year =  $request->input('year', date('Y'));
+        $semester = (int) $request->input('semester', 1);
+
+        $result = DB::table('classrooms')->where('classcode', $classcode)->update([
+            'classname' => $classname,
+            'section' => $section,
+            'year' => $year,
+            'term' => $semester
+        ]);
+        if (!$result) {
+            return response()->json([
+                'status' => false,
+                'message' => 'ไม่สามารถบันทึกข้อมูลได้'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $classroom = DB::table('classrooms')->where('classcode', $classcode)->first() ?: null;
+
+        if ($classroom) {
+            Redis::setEx("classroom:$classcode", 3600 * 24, json_encode($classroom));
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'แก้ชั้นเรียนสำเร็จ',
+            'data' => [
+                'classcode' => $classcode
+            ]
+        ], Response::HTTP_CREATED);
+    }
+
     public function joinClass(Request $request)
     {
         $classcode = $request->input('classcode', '');
