@@ -19,7 +19,7 @@ class CreateSubmissionTable extends Migration
             $table->string('classcode', 7);
             $table->unsignedBigInteger('problem_id');
             $table->text('code')->nullable();
-            $table->string('result')->nullable();
+            $table->text('result')->nullable();
             $table->float('score', 5, 2)->default(0);
             $table->string('lang');
             $table->timestamp('created_at');
