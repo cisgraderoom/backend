@@ -76,7 +76,7 @@ class RoleBase
     public function checkUserHasPermission(User $user, string $classcode): bool
     {
         if (!empty($user)) {
-            return (UserAccess::where('username', $user->username)->where('classcode', $classcode)->count() > 0 || Classroom::where('teacher', $user->username)->where('classcode', $classcode)->count() > 0);
+            return (UserAccess::where('username', $user->username)->where('classcode', $classcode)->where('is_delete', 0)->count() > 0 || Classroom::where('teacher', $user->username)->where('classcode', $classcode)->count() > 0);
         }
         return false;
     }

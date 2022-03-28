@@ -125,6 +125,7 @@ class UserController extends Controller
         $rolebase = new RoleBase();
         $pageInfo = new PageInfo();
         $page = (int)$request->input('page', 1);
+        $search = $request->input('search', '');
         $user = auth()->user();
         if (!$rolebase->isAdmin($user)) {
             return response()->json([
@@ -133,8 +134,14 @@ class UserController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $datas = DB::table($this->usertable)->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray();;
-        $total = DB::table($this->usertable)->count() ?: 0;
+        if ($search != '') {
+            $datas = User::where('username', 'like', '%' . $search . '%')->orWhere('name', 'like', '%' . $search . '%')->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray();
+            $total = DB::table($this->usertable)->where('username', 'like', '%' . $search . '%')->orWhere('name', 'like', '%' . $search . '%')->count() ?: 0;
+        } else {
+            $datas = DB::table($this->usertable)->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray();
+            $total = DB::table($this->usertable)->count() ?: 0;
+        }
+
         return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
     }
 

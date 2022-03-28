@@ -162,7 +162,7 @@ class SubmissionController extends Controller
         }
 
 
-        $res = DB::table($this->scoreTable)->where('score.classcode', $classcode)->join($this->usertable, 'score.username', '=', 'users.username')->join($this->problemTable, 'score.problem_id', '=', 'problems.problem_id')->get([
+        $res = DB::table($this->scoreTable)->where('score.classcode', $classcode)->join($this->usertable, 'score.username', '=', 'users.username')->join($this->problemTable, 'score.problem_id', '=', 'problems.problem_id')->join('user_access', 'score.username', '=', 'user_access.username')->where('user_access.is_delete', 0)->get([
             'users.username',
             'users.name',
             'score.problem_id',
@@ -194,6 +194,7 @@ class SubmissionController extends Controller
         $rolebase = new RoleBase();
         $pageInfo = new PageInfo();
         $page = (int)$request->input('page', 1);
+        $search = $request->input('search', '');
         $user = auth()->user();
 
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
@@ -210,8 +211,13 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $datas = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->offset(($page - 1) * $this->limit)->take($this->limit)->orderBy('created_at', 'desc')->get()->toArray() ?: [];
-        $total = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->count() ?: 0;
+        if ($search != '') {
+            $datas = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->where('username', 'like', '%' . $search . '%')->offset(($page - 1) * $this->limit)->take($this->limit)->orderBy('created_at', 'desc')->get()->toArray();
+            $total = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->where('username', 'like', '%' . $search . '%')->count() ?: 0;
+        } else {
+            $datas = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->offset(($page - 1) * $this->limit)->take($this->limit)->orderBy('created_at', 'desc')->get()->toArray() ?: [];
+            $total = DB::table($this->submissionTable)->where('classcode', $classcode)->where('problem_id', $problem)->count() ?: 0;
+        }
         return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
     }
 
@@ -389,6 +395,7 @@ class SubmissionController extends Controller
         $rolebase = new RoleBase();
         $pageInfo = new PageInfo();
         $page = (int) $request->input('page', 1);
+        $search = $request->input('search', '');
         $user = auth()->user();
 
         if (!$rolebase->checkUserHasPermission($user, $classcode)) {
@@ -405,8 +412,13 @@ class SubmissionController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $datas = DB::table('plagiarism')->where('problem_id', $id)->offset(($page - 1) * $this->limit)->take($this->limit)->orderBy('result', 'desc')->get()->toArray() ?: [];
-        $total = DB::table('plagiarism')->where('problem_id', $id)->count() ?: 0;
+        if ($search !== '') {
+            $datas = DB::table('plagiarism')->where('problem_id', $id)->where('owner', 'like', '%' . $search . '%')->orWhere('compare', 'like', '%' . $search . '%')->orderBy('result', 'desc')->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray() ?: [];
+            $total = DB::table('plagiarism')->where('problem_id', $id)->where('owner', 'like', '%' . $search . '%')->orWhere('compare', 'like', '%' . $search . '%')->count() ?: 0;
+        } else {
+            $datas = DB::table('plagiarism')->where('problem_id', $id)->orderBy('result', 'desc')->offset(($page - 1) * $this->limit)->take($this->limit)->get()->toArray() ?: [];
+            $total = DB::table('plagiarism')->where('problem_id', $id)->count() ?: 0;
+        }
         return $pageInfo->pageInfo($page, $total, $this->limit, $datas);
     }
 
@@ -429,8 +441,14 @@ class SubmissionController extends Controller
         }
 
         $problem = DB::table($this->problemTable)->where('problem_id', $id)->first();
-        $ownerCode = DB::table('submission')->where('username', $owner)->where('problem_id', $id)->orderBy('created_at', 'desc')->first()->code ?: null;
-        $compareCode = DB::table('submission')->where('username', $compare)->where('problem_id', $id)->orderBy('created_at', 'desc')->first()->code ?: null;
+        $ownerCode = DB::table('submission')->where('submission.username', $owner)->where('problem_id', $id)->join('users', 'submission.username', '=', 'users.username')->orderBy('submission.created_at', 'desc')->first([
+            'users.username',
+            'submission.code',
+        ]) ?: [];
+        $compareCode = DB::table('submission')->where('submission.username', $compare)->where('problem_id', $id)->join('users', 'submission.username', '=', 'users.username')->orderBy('submission.created_at', 'desc')->first([
+            'users.username',
+            'submission.code',
+        ]) ?: [];
         if (!$ownerCode || !$compareCode) {
             return response()->json([
                 'status' => false,
