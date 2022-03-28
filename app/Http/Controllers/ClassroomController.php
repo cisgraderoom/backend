@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use App\Helper\Constant;
 
-
 class ClassroomController extends Controller
 {
 
@@ -109,6 +108,10 @@ class ClassroomController extends Controller
         if ($classroom) {
             Redis::setEx("classroom:$classcode", 3600 * 24, json_encode($classroom));
         }
+
+        Redis::del(Redis::keys(
+            "classroom:*:*"
+        ));
 
         return response()->json([
             'status' => true,
@@ -325,7 +328,9 @@ class ClassroomController extends Controller
     {
         $user = DB::table('users')->where('username', $username)->first('role');
         $role = $user->role ?: 'student';
-        Redis::del(`classroom:${role}:${username}`);
+        Redis::del(Redis::keys(
+            "classroom:" . $role . ":" . $username
+        ));
     }
 
     public function joinTeacherClass(Request $request)
