@@ -443,10 +443,12 @@ class SubmissionController extends Controller
         $problem = DB::table($this->problemTable)->where('problem_id', $id)->first();
         $ownerCode = DB::table('submission')->where('submission.username', $owner)->where('problem_id', $id)->join('users', 'submission.username', '=', 'users.username')->orderBy('submission.created_at', 'desc')->first([
             'users.username',
+            'users.name',
             'submission.code',
         ]) ?: [];
         $compareCode = DB::table('submission')->where('submission.username', $compare)->where('problem_id', $id)->join('users', 'submission.username', '=', 'users.username')->orderBy('submission.created_at', 'desc')->first([
             'users.username',
+            'users.name',
             'submission.code',
         ]) ?: [];
         if (!$ownerCode || !$compareCode) {
