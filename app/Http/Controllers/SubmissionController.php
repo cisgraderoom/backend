@@ -162,7 +162,7 @@ class SubmissionController extends Controller
         }
 
 
-        $res = DB::table($this->scoreTable)->where('score.classcode', $classcode)->join($this->usertable, 'score.username', '=', 'users.username')->join($this->problemTable, 'score.problem_id', '=', 'problems.problem_id')->join('user_access', 'score.username', '=', 'user_access.username')->where('user_access.is_delete', 0)->get([
+	$res = DB::table($this->scoreTable)->where('score.classcode', $classcode)->join($this->usertable, 'score.username', '=', 'users.username')->join($this->problemTable, 'score.problem_id', '=', 'problems.problem_id')->get([
             'users.username',
             'users.name',
             'score.problem_id',
@@ -172,7 +172,7 @@ class SubmissionController extends Controller
 
         foreach ($res as $_ => $item) {
             $item = (array)$item;
-            $score[$item['problem_id']][] = $item;
+	    $score[$item['problem_id']][] = $item;
         }
 
         if (!$res) {
